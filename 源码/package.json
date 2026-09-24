@@ -31,6 +31,8 @@
       "main.js",
       "pet.js",
       "preload.js",
+      "preload-settings.js",
+      "settings-window.html",
       "styles.css",
       "package.json"
     ],

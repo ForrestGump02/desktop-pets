@@ -217,18 +217,6 @@ function createSettingsWindow() {
   settingsWindow.on("closed", () => { settingsWindow = null; });
 }
 
-// --- Preload for settings window ---
-function createSettingsPreload() {
-  const preloadPath = path.join(__dirname, "preload-settings.js");
-  const content = `const { contextBridge, ipcRenderer } = require("electron");
-contextBridge.exposeInMainWorld("linePuppySettings", {
-  loadSchedule() { return ipcRenderer.invoke("settings:load-schedule"); },
-  saveSchedule(data) { return ipcRenderer.invoke("settings:save-schedule", data); },
-});
-`;
-  fs.writeFileSync(preloadPath, content, "utf8");
-}
-
 // --- IPC: settings window ↔ main process ---
 ipcMain.handle("settings:load-schedule", () => loadSchedule());
 ipcMain.handle("settings:save-schedule", (_event, data) => {
@@ -578,5 +566,3 @@ function getPetBoundsInWindow(bounds, windowWidth, windowHeight) {
   return { left: nl, top: nt, right: nl + nw, bottom: nt + nh, width: nw, height: nh };
 }
 
-// Generate preload-settings.js on startup
-createSettingsPreload();
