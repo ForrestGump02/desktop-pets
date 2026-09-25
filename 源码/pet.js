@@ -101,6 +101,7 @@ let failedScheduledSlot = "";
 let taskCompleteAfterScheduled = false;
 let timedInteractionPlaying = false;
 let timedInteractionEffect = "";
+let timedInteractionEntryId = "";
 let musicPlaybackState = "idle";
 let musicCycleTimer = 0;
 let musicLoadListener = null;
@@ -117,18 +118,18 @@ let desktopLocked = false;
 // ──────────────────────────────────────────────
 // Default schedule — same as main.js DEFAULT_SCHEDULE_WINDOWS
 let SCHEDULE_WINDOWS = [
-  { id: "_520_1", type: "scheduled", start: "05:20", effect: "love520" },
-  { id: "_520_2", type: "scheduled", start: "17:20", effect: "love520" },
-  { id: "_521_1", type: "scheduled", start: "05:21", effect: "love521" },
-  { id: "_521_2", type: "scheduled", start: "17:21", effect: "love521" },
-  { id: "_morning_reading",  type: "timed", start: "10:30", end: "10:40", effect: "morningReading", interruptible: true },
-  { id: "_morning_drink",    type: "timed", start: "10:40", end: "10:50", effect: "morningDrink",   interruptible: true },
-  { id: "_afterwork",        type: "timed", start: "18:00", end: "19:00", effect: "afterWork",      interruptible: true },
-  { id: "_night_sleep",  type: "timed", start: "23:00", end: "24:00", effect: "sleep",  interruptible: true },
-  { id: "_night_sleep2", type: "timed", start: "00:00", end: "02:00", effect: "sleep2", interruptible: true },
-  { id: "_meal_1",      type: "timed", start: "09:30", end: "10:10", effect: "mealtime", interruptible: true },
-  { id: "_meal_2",      type: "timed", start: "12:00", end: "13:00", effect: "mealtime", interruptible: true },
-  { id: "_meal_3",      type: "timed", start: "20:00", end: "21:00", effect: "mealtime", interruptible: true },
+  { id: "_520_1", type: "scheduled", start: "05:20", effects: ["love520"] },
+  { id: "_520_2", type: "scheduled", start: "17:20", effects: ["love520"] },
+  { id: "_521_1", type: "scheduled", start: "05:21", effects: ["love521"] },
+  { id: "_521_2", type: "scheduled", start: "17:21", effects: ["love521"] },
+  { id: "_morning_reading",  type: "timed", start: "10:30", end: "10:40", effects: ["morningReading"], interruptible: true },
+  { id: "_morning_drink",    type: "timed", start: "10:40", end: "10:50", effects: ["morningDrink"],   interruptible: true },
+  { id: "_afterwork",        type: "timed", start: "18:00", end: "19:00", effects: ["afterWork"],      interruptible: true },
+  { id: "_night_sleep",  type: "timed", start: "23:00", end: "24:00", effects: ["sleep"],  interruptible: true },
+  { id: "_night_sleep2", type: "timed", start: "00:00", end: "02:00", effects: ["sleep2"], interruptible: true },
+  { id: "_meal_1",      type: "timed", start: "09:30", end: "10:10", effects: ["mealtime"], interruptible: true },
+  { id: "_meal_2",      type: "timed", start: "12:00", end: "13:00", effects: ["mealtime"], interruptible: true },
+  { id: "_meal_3",      type: "timed", start: "20:00", end: "21:00", effects: ["mealtime"], interruptible: true },
 ];
 
 // ──────────────────────────────────────────────
@@ -169,16 +170,16 @@ function updateScheduledAnimations(date = new Date()) {
 
   // Find a matching scheduled entry (exact-time, non-interruptible)
   const scheduledEntry = SCHEDULE_WINDOWS.find(
-    entry => entry.type === "scheduled" && entry.start === currentTime
+    entry => entry.type === "scheduled" && entry.enabled !== false && entry.start === currentTime
   );
 
   if (scheduledEntry) {
     const slot = `${day} ${currentTime}`;
     if (failedScheduledSlot === slot) return;
-    if (scheduledPlaying && scheduledEffect === scheduledEntry.effect) return;
+    if (scheduledPlaying && scheduledEntry.effects && scheduledEntry.effects.includes(scheduledEffect)) return;
     if (startupPlaying || isDragging || isPressing || isScaling || currentState === "taskComplete") return;
     if (scheduledPlaying) stopScheduledAnimation(false);
-    playScheduledAnimation(scheduledEntry.effect, slot, false);
+    playScheduledAnimation(scheduledEntry, slot, false);
     return;
   }
 
@@ -192,7 +193,7 @@ function updateTimedInteractions(date = new Date()) {
 
   // Find a matching timed entry (time-window, interruptible)
   const timedEntry = SCHEDULE_WINDOWS.find(entry => {
-    if (entry.type !== "timed") return false;
+    if (entry.type !== "timed" || entry.enabled === false) return false;
     const startMin = timeToMinutes(entry.start);
     const endMin   = timeToMinutes(entry.end);
     if (startMin < 0 || endMin < 0) return false;
@@ -203,18 +204,19 @@ function updateTimedInteractions(date = new Date()) {
     if (timedInteractionPlaying) stopTimedInteraction();
     return;
   }
-  if (timedInteractionPlaying && timedInteractionEffect === timedEntry.effect) return;
+  if (timedInteractionPlaying && timedInteractionEntryId === timedEntry.id) return;
   if (startupPlaying || isScheduledAnimationLocked() || isDragging || isPressing || isScaling || currentState === "taskComplete") return;
   // Music takes priority over timed interactions (e.g., mealtime).
   if (musicPlaybackState === "playing") return;
   if (timedInteractionPlaying) stopTimedInteraction(false);
-  playTimedInteraction(timedEntry.effect);
+  playTimedInteraction(timedEntry);
 }
 
 function isMealtime(date = new Date()) {
   const now = currentMinutes(date);
   return SCHEDULE_WINDOWS.some(entry => {
-    if (entry.type !== "timed" || entry.effect !== "mealtime") return false;
+    if (entry.type !== "timed" || entry.enabled === false) return false;
+    if (!Array.isArray(entry.effects) || !entry.effects.includes("mealtime")) return false;
     const startMin = timeToMinutes(entry.start);
     const endMin   = timeToMinutes(entry.end);
     return startMin >= 0 && endMin >= 0 && now >= startMin && now < endMin;
@@ -251,10 +253,19 @@ function onDesktopLockChange(locked) {
 // ──────────────────────────────────────────────
 window.linePuppyWindow?.onScheduleChange?.(data => {
   if (!data) return;
-  SCHEDULE_WINDOWS = data.windows || SCHEDULE_WINDOWS;
+  const merged = [].concat(data.windows || [], data.system || []);
+  if (merged.length) SCHEDULE_WINDOWS = merged;
   // Re-evaluate immediately
   updateTimedInteractions();
   updateScheduledAnimations();
+});
+
+// Register user-imported GIFs into the animation lookup table
+window.linePuppyWindow?.onCustomGifs?.(gifs => {
+  if (!Array.isArray(gifs)) return;
+  for (const gif of gifs) {
+    if (gif && gif.value && gif.file) animations[gif.value] = gif.file;
+  }
 });
 
 // ──────────────────────────────────────────────
@@ -366,15 +377,21 @@ function stopTimedInteraction(restore = true) {
   const wasDisplaying = currentState === timedInteractionEffect;
   timedInteractionPlaying = false;
   timedInteractionEffect = "";
+  timedInteractionEntryId = "";
   if (!restore || !wasDisplaying) return;
   suppressHoverUntilLeave = isHovering;
   setPetState("default", { force: true });
 }
 
-function playTimedInteraction(effect) {
+function playTimedInteraction(entry) {
+  const list = (entry.effects && entry.effects.length) ? entry.effects : (entry.effect ? [entry.effect] : []);
+  if (list.length === 0) return;
+  // Pick a random effect so multiple GIFs feel varied
+  const effect = list[Math.floor(Math.random() * list.length)];
   setPetState(effect, { force: true });
   timedInteractionPlaying = true;
   timedInteractionEffect = effect;
+  timedInteractionEntryId = entry.id || "";
 }
 
 function stopScheduledAnimation(restore = true) {
@@ -390,7 +407,10 @@ function stopScheduledAnimation(restore = true) {
   if (taskCompleteAfterScheduled) { taskCompleteAfterScheduled = false; playTaskComplete(); }
 }
 
-function playScheduledAnimation(effect, slot, interruptible = false) {
+function playScheduledAnimation(entry, slot, interruptible = false) {
+  const list = (entry.effects && entry.effects.length) ? entry.effects : (entry.effect ? [entry.effect] : []);
+  if (list.length === 0) return;
+  const effect = list[Math.floor(Math.random() * list.length)];
   clearClickEffect();
   hideCloseTip();
   scheduledErrorListener = () => {

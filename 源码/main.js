@@ -1,6 +1,12 @@
-const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog, globalShortcut } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage, dialog, globalShortcut, protocol } = require("electron");
 const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
+
+// Register the gif:// scheme so user-imported GIFs can be loaded as image sources
+protocol.registerSchemesAsPrivileged([
+  { scheme: "gif", privileges: { secure: true, supportFetchAPI: false, bypassCSP: true, stream: false } },
+]);
 const { spawn } = require("child_process");
 const { createInterface } = require("readline");
 
@@ -92,6 +98,12 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
+    // Custom protocol to serve user-imported GIFs from userData (writable, survives reinstall)
+    protocol.registerFileProtocol("gif", (request, callback) => {
+      const name = decodeURIComponent(request.url.replace(/^gif:\/\/?/, ""));
+      callback(path.join(app.getPath("userData"), "user-gifs", name));
+    });
+
     if (isWindows) repairWindowsLoginItem();
 
     if (isMac) {
@@ -147,40 +159,69 @@ if (!app.requestSingleInstanceLock()) {
 // --- Default schedule config (used when settings.json has no schedule) ---
 const DEFAULT_SCHEDULE_WINDOWS = [
   // scheduled (exact-time, non-interruptible)
-  { id: "_520_1",   type: "scheduled", start: "05:20", effect: "love520" },
-  { id: "_520_2",   type: "scheduled", start: "17:20", effect: "love520" },
-  { id: "_521_1",   type: "scheduled", start: "05:21", effect: "love521" },
-  { id: "_521_2",   type: "scheduled", start: "17:21", effect: "love521" },
+  { id: "_520_1",   type: "scheduled", start: "05:20", effects: ["love520"] },
+  { id: "_520_2",   type: "scheduled", start: "17:20", effects: ["love520"] },
+  { id: "_521_1",   type: "scheduled", start: "05:21", effects: ["love521"] },
+  { id: "_521_2",   type: "scheduled", start: "17:21", effects: ["love521"] },
   // timed (time-window, interruptible)
-  { id: "_morning_reading",  type: "timed", start: "10:30", end: "10:40", effect: "morningReading", interruptible: true },
-  { id: "_morning_drink",    type: "timed", start: "10:40", end: "10:50", effect: "morningDrink",   interruptible: true },
-  { id: "_afterwork",        type: "timed", start: "18:00", end: "19:00", effect: "afterWork",      interruptible: true },
+  { id: "_morning_reading",  type: "timed", start: "10:30", end: "10:40", effects: ["morningReading"], interruptible: true },
+  { id: "_morning_drink",    type: "timed", start: "10:40", end: "10:50", effects: ["morningDrink"],   interruptible: true },
+  { id: "_afterwork",        type: "timed", start: "18:00", end: "19:00", effects: ["afterWork"],      interruptible: true },
   // night / mealtime (always present, controlled by `enabled` flag)
-  { id: "_night_sleep",  type: "timed", start: "23:00", end: "24:00", effect: "sleep",    interruptible: true },
-  { id: "_night_sleep2", type: "timed", start: "00:00", end: "02:00", effect: "sleep2",   interruptible: true },
-  { id: "_meal_1",      type: "timed", start: "09:30", end: "10:10", effect: "mealtime", interruptible: true },
-  { id: "_meal_2",      type: "timed", start: "12:00", end: "13:00", effect: "mealtime", interruptible: true },
-  { id: "_meal_3",      type: "timed", start: "20:00", end: "21:00", effect: "mealtime", interruptible: true },
+  { id: "_night_sleep",  type: "timed", start: "23:00", end: "24:00", effects: ["sleep"],    interruptible: true },
+  { id: "_night_sleep2", type: "timed", start: "00:00", end: "02:00", effects: ["sleep2"],   interruptible: true },
+  { id: "_meal_1",      type: "timed", start: "09:30", end: "10:10", effects: ["mealtime"], interruptible: true },
+  { id: "_meal_2",      type: "timed", start: "12:00", end: "13:00", effects: ["mealtime"], interruptible: true },
+  { id: "_meal_3",      type: "timed", start: "20:00", end: "21:00", effects: ["mealtime"], interruptible: true },
 ];
 
 const SYSTEM_ENTRIES = DEFAULT_SCHEDULE_WINDOWS.filter(e =>
   ["_night_sleep", "_night_sleep2", "_meal_1", "_meal_2", "_meal_3"].includes(e.id)
 );
 
+// Normalize a schedule entry so it always uses `effects: []` (backward-compat with old `effect` field)
+function normalizeEffects(entry) {
+  if (!Array.isArray(entry.effects)) {
+    entry.effects = entry.effect ? [entry.effect] : [];
+  }
+  delete entry.effect;
+  return entry;
+}
+
 function loadSchedule() {
   const settings = loadSettings();
   const saved = settings.animationSchedule;
-  if (!saved) return { windows: DEFAULT_SCHEDULE_WINDOWS, system: SYSTEM_ENTRIES };
+  if (!saved) return {
+    windows: DEFAULT_SCHEDULE_WINDOWS.map(normalizeEffects),
+    system: SYSTEM_ENTRIES.map(normalizeEffects),
+  };
 
-  const windows = saved.windows || DEFAULT_SCHEDULE_WINDOWS;
+  const windows = (saved.windows || DEFAULT_SCHEDULE_WINDOWS).map(normalizeEffects);
   // Merge system entries, preserving enabled flags from saved
   const systemMap = {};
   for (const s of SYSTEM_ENTRIES) {
     const savedSys = (saved.system || []).find(e => e.id === s.id);
-    systemMap[s.id] = { ...s, enabled: savedSys ? savedSys.enabled : true };
+    systemMap[s.id] = normalizeEffects({ ...s, enabled: savedSys ? savedSys.enabled : true });
   }
   const system = Object.values(systemMap);
   return { windows, system };
+}
+
+// Custom (user-imported) GIF helpers
+const USER_GIFS_DIR = () => path.join(app.getPath("userData"), "user-gifs");
+
+// Returns stored descriptors { value, label, file } where file is the bare filename
+function getCustomGifs() {
+  return loadSettings().customAssets || [];
+}
+
+// Returns descriptors with a resolvable gif:// URL for the renderer
+function loadCustomGifsForRenderer() {
+  return getCustomGifs().map(a => ({
+    value: a.value,
+    label: a.label,
+    file: `gif://${a.file}`,
+  }));
 }
 
 function saveSchedule(data) {
@@ -225,6 +266,47 @@ ipcMain.handle("settings:save-schedule", (_event, data) => {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send("pet:schedule-changed", loadSchedule());
   }
+});
+ipcMain.handle("settings:get-custom-gifs", () => getCustomGifs());
+ipcMain.handle("settings:import-gif", async () => {
+  const result = await dialog.showOpenDialog(settingsWindow || petWindow, {
+    title: "选择 GIF 动画",
+    properties: ["openFile"],
+    filters: [{ name: "GIF 动画", extensions: ["gif"] }],
+  });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) return { ok: false };
+  const src = result.filePaths[0];
+  const dir = USER_GIFS_DIR();
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
+  const safe = path.basename(src).replace(/[^\w.\u4e00-\u9fff-]/g, "_");
+  let destName = safe,
+    counter = 1;
+  while (fs.existsSync(path.join(dir, destName))) {
+    const ext = path.extname(safe);
+    const stem = safe.slice(0, safe.length - ext.length);
+    destName = `${stem}_${counter}${ext}`;
+    counter++;
+  }
+  fs.copyFileSync(src, path.join(dir, destName));
+  const value = `user/${destName}`;
+  const settings = loadSettings();
+  const customAssets = settings.customAssets || [];
+  let asset = customAssets.find(a => a.value === value);
+  if (!asset) {
+    asset = { value, label: path.parse(destName).name, file: destName };
+    customAssets.push(asset);
+    saveSettings({ customAssets });
+  }
+  return { ok: true, asset: { value: asset.value, label: asset.label, file: `gif://${asset.file}` } };
+});
+ipcMain.handle("settings:delete-gif", (_event, value) => {
+  const settings = loadSettings();
+  const customAssets = (settings.customAssets || []).filter(a => a.value !== value);
+  saveSettings({ customAssets });
+  const name = value.startsWith("user/") ? value.slice(5) : value;
+  const filePath = path.join(USER_GIFS_DIR(), name);
+  if (fs.existsSync(filePath)) { try { fs.unlinkSync(filePath); } catch { /* ignore */ } }
+  return { ok: true };
 });
 
 // --- IPC: desktop-lock ---
@@ -379,6 +461,8 @@ function createPetWindow() {
     petWindow.webContents.send("pet:music-state", musicState);
     // Send current schedule config
     petWindow.webContents.send("pet:schedule-changed", loadSchedule());
+    // Send user-imported GIFs (gif:// URLs)
+    petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
     if (pendingTaskComplete) { pendingTaskComplete = false; sendTaskComplete(); }
   });
 }

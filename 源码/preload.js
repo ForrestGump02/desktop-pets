@@ -57,4 +57,11 @@ contextBridge.exposeInMainWorld("linePuppyWindow", {
     ipcRenderer.on("pet:schedule-changed", listener);
     return () => ipcRenderer.removeListener("pet:schedule-changed", listener);
   },
+  // custom gifs: receive user-imported GIF descriptors with resolvable URLs
+  onCustomGifs(callback) {
+    if (typeof callback !== "function") return () => {};
+    const listener = (_event, gifs) => callback(gifs);
+    ipcRenderer.on("pet:custom-gifs", listener);
+    return () => ipcRenderer.removeListener("pet:custom-gifs", listener);
+  },
 });

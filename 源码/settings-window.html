@@ -1,600 +1,443 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
   <title>动画日程</title>
   <style>
     :root {
       --bg: #1e1e2e;
-      --surface: #2a2a3e;
-      --border: #3a3a5e;
-      --accent: #7c6af0;
-      --accent-hover: #9b8aff;
-      --text: #e0e0f0;
-      --text-dim: #8888aa;
-      --danger: #e06060;
-      --danger-hover: #ff7070;
-      --success: #60c080;
-      --font: "Segoe UI", system-ui, sans-serif;
+      --panel: #282838;
+      --panel-2: #313147;
+      --text: #e6e6f0;
+      --muted: #9a9ab0;
+      --accent: #89b4fa;
+      --accent-2: #a6e3a1;
+      --border: #3a3a52;
+      --danger: #f38ba8;
     }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    * { box-sizing: border-box; }
     body {
+      margin: 0;
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-family: var(--font);
       font-size: 13px;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      user-select: none;
     }
-
     header {
-      background: var(--surface);
+      padding: 14px 16px 10px;
       border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
+      background: var(--panel);
+    }
+    header h1 { margin: 0 0 4px; font-size: 16px; }
+    header p { margin: 0; color: var(--muted); font-size: 12px; }
+    #add-section {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      -webkit-app-region: drag;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      flex-wrap: wrap;
     }
-
-    header .icon {
-      font-size: 18px;
+    button, select, input {
+      font-family: inherit;
+      font-size: 13px;
     }
-
-    header h1 {
-      font-size: 14px;
+    .btn-add, .btn-import {
+      background: var(--accent);
+      color: #11111b;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
       font-weight: 600;
-      color: var(--text);
-      flex: 1;
     }
-
-    header .subtitle {
-      font-size: 11px;
-      color: var(--text-dim);
+    .btn-import { background: var(--accent-2); }
+    .btn-add:hover, .btn-import:hover { filter: brightness(1.08); }
+    .list-title {
+      margin: 14px 16px 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.5px;
     }
-
-    main {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-    }
-
-    /* Section headers */
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin: 14px 0 8px;
-    }
-    .section-label:first-child { margin-top: 0; }
-
-    /* Entry card */
     .entry {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-    }
-
-    .entry-top {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 8px;
+      padding: 8px 12px;
+      margin: 6px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
     }
-
-    .entry-time {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex: 1;
+    .entry.dragging { opacity: 0.45; }
+    .entry.placeholder { background: transparent; border: 2px dashed var(--accent); height: 44px; }
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted);
+      font-size: 16px;
+      user-select: none;
+      line-height: 1;
     }
-
-    .entry-time input[type="time"] {
-      background: var(--bg);
+    .entry-head { display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; }
+    .entry-type, .entry-start, .entry-end {
+      background: var(--panel-2);
+      color: var(--text);
       border: 1px solid var(--border);
       border-radius: 5px;
-      color: var(--text);
       padding: 4px 6px;
-      font-size: 12px;
-      font-family: var(--font);
-      width: 90px;
-      outline: none;
     }
-
-    .entry-time input[type="time"]:focus {
-      border-color: var(--accent);
-    }
-
-    .entry-time .sep {
-      color: var(--text-dim);
-      font-size: 12px;
-    }
-
-    .entry-effect {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      color: var(--text);
-      padding: 4px 8px;
-      font-size: 12px;
-      font-family: var(--font);
-      min-width: 150px;
-      outline: none;
-    }
-
-    .entry-effect:focus {
-      border-color: var(--accent);
-    }
-
-    .entry-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .entry-controls label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      color: var(--text-dim);
-      cursor: pointer;
-    }
-
-    .entry-controls input[type="checkbox"] {
-      accent-color: var(--accent);
-      width: 13px;
-      height: 13px;
-    }
-
-    .entry-controls .type-badge {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-    }
-
-    .type-badge.timed {
-      background: rgba(124, 106, 240, 0.2);
-      color: var(--accent);
-    }
-
-    .type-badge.scheduled {
-      background: rgba(96, 192, 128, 0.2);
-      color: var(--success);
-    }
-
-    .btn-del {
+    .entry-start, .entry-end { width: 64px; text-align: center; }
+    .entry-int { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: 12px; }
+    .entry-del {
       background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 5px;
       color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 5px;
+      padding: 3px 8px;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .entry-del:hover { background: var(--danger); color: #11111b; }
+    .badge-system {
+      background: var(--border);
+      color: var(--muted);
+      border-radius: 5px;
       padding: 3px 8px;
       font-size: 11px;
-      cursor: pointer;
-      transition: all 0.15s;
+      margin-left: auto;
     }
-
-    .btn-del:hover {
-      background: var(--danger);
-      color: white;
-      border-color: var(--danger);
-    }
-
-    .entry-bottom {
-      font-size: 10px;
-      color: var(--text-dim);
-      padding: 4px 0 0;
-      border-top: 1px solid var(--border);
+    .entry-effects {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
+      width: 100%;
+      padding-top: 6px;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border);
     }
-
-    .entry-bottom .tag {
-      background: rgba(136, 136, 170, 0.15);
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-
-    /* Add button */
-    #add-section {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-
-    .btn-add {
-      flex: 1;
-      background: rgba(124, 106, 240, 0.12);
-      border: 1px dashed var(--accent);
-      border-radius: 6px;
+    .effect-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--panel-2);
+      border: 1px solid var(--accent);
       color: var(--accent);
-      padding: 7px;
+      border-radius: 14px;
+      padding: 2px 4px 2px 10px;
       font-size: 12px;
+    }
+    .chip-x {
+      background: transparent;
+      border: none;
+      color: var(--accent);
       cursor: pointer;
-      transition: all 0.15s;
-      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
     }
-
-    .btn-add:hover {
-      background: rgba(124, 106, 240, 0.22);
+    .chip-x:hover { color: var(--danger); }
+    .effect-add {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 2px 8px;
+      cursor: pointer;
     }
-
-    /* Footer */
-    footer {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 10px 16px;
+    #footer {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      padding: 14px 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      position: sticky;
+      bottom: 0;
     }
-
-    footer button {
-      padding: 7px 18px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-family: var(--font);
-      cursor: pointer;
+    .btn-save {
+      background: var(--accent-2);
+      color: #11111b;
       border: none;
-      transition: all 0.15s;
+      border-radius: 6px;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-weight: 700;
     }
-
-    #btn-cancel {
-      background: var(--bg);
-      color: var(--text-dim);
+    .btn-cancel {
+      background: transparent;
+      color: var(--muted);
       border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 18px;
+      cursor: pointer;
     }
-
-    #btn-cancel:hover { color: var(--text); }
-
-    #btn-save {
-      background: var(--accent);
-      color: white;
-    }
-
-    #btn-save:hover { background: var(--accent-hover); }
-    #btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
-
-    /* Drag handle */
-    .drag-handle {
-      color: var(--text-dim);
-      cursor: grab;
-      font-size: 14px;
-      padding: 0 2px;
-      flex-shrink: 0;
-    }
-
-    .drag-handle:active { cursor: grabbing; }
-
-    .entry.dragging { opacity: 0.4; }
-    .drag-placeholder {
-      height: 1px;
-      background: var(--accent);
-      margin: -4px 0 7px;
-      border-radius: 2px;
-    }
+    .hint { color: var(--muted); font-size: 11px; padding: 0 16px 10px; }
   </style>
 </head>
 <body>
-
-<header>
-  <span class="icon">🗓️</span>
-  <div>
-    <h1>动画日程配置</h1>
-    <div class="subtitle">拖动条目可调整优先级顺序</div>
-  </div>
-</header>
-
-<main>
-  <div class="section-label">定时动画（精确时刻触发，不可打断）</div>
-  <div id="scheduled-list"></div>
-
-  <div class="section-label">时段互动（时间段内显示，可被打断）</div>
-  <div id="timed-list"></div>
+  <header>
+    <h1>动画日程</h1>
+    <p>配置每个时间段的动画效果。可为同一时段添加多个 GIF，桌宠会随机播放。</p>
+  </header>
 
   <div id="add-section">
     <button class="btn-add" id="btn-add-scheduled">+ 添加定时动画</button>
-    <button class="btn-add" id="btn-add-timed">+ 添加时段互动</button>
+    <button class="btn-add" id="btn-add-timed">+ 添加时段动画</button>
+    <button class="btn-import" id="btn-import-gif">📥 导入 GIF</button>
   </div>
 
-  <div class="section-label">特殊时段</div>
+  <div class="list-title">定时动画（精确时刻，不可打断）</div>
+  <div id="scheduled-list"></div>
+
+  <div class="list-title">时段动画（时间窗，可打断，如三餐/睡眠）</div>
+  <div id="timed-list"></div>
+
+  <div class="list-title">系统内置（不可删除，可改效果）</div>
   <div id="system-list"></div>
-</main>
+  <div class="hint">系统内置时段：深夜熟睡、三餐。取消所有 GIF 即可停用该时段动画。</div>
 
-<footer>
-  <button id="btn-cancel">取消</button>
-  <button id="btn-save">保存</button>
-</footer>
+  <div id="footer">
+    <button class="btn-cancel" id="btn-cancel">取消</button>
+    <button class="btn-save" id="btn-save">保存</button>
+  </div>
 
-<script>
-const ALL_EFFECTS = [
-  { value: "love520",    label: "520（我爱你）",          file: "520.gif" },
-  { value: "love521",    label: "521（我爱伊）",          file: "521.gif" },
-  { value: "heart",      label: "爱心（单击效果）",       file: "heart.gif" },
-  { value: "jump",       label: "弹跳（悬停效果）",        file: "jump.gif" },
-  { value: "scroll",     label: "滚轮动画",               file: "scroll.gif" },
-  { value: "music",      label: "音乐播放",               file: "music.gif" },
-  { value: "sleep",      label: "犯困",                   file: "sleepy.gif" },
-  { value: "sleep2",     label: "深度睡眠",               file: "sleepy2.gif" },
-  { value: "mealtime",   label: "用餐时间",               file: "mealtime.gif" },
-  { value: "afterWork",  label: "下班啦",                 file: "after-work.gif" },
-  { value: "morningReading", label: "上午阅读",           file: "morning-reading.gif" },
-  { value: "morningDrink",  label: "上午喝水",           file: "morning-drink.gif" },
-  { value: "startup",    label: "启动动画",               file: "turn on.gif" },
-  { value: "taskComplete", label: "任务完成",             file: "usageOver3Hours.gif" },
-  { value: "send",       label: "发送（Enter）",          file: "send.gif" },
-  { value: "good",       label: "确认（Ctrl+S）",         file: "good.gif" },
-  { value: "delete",     label: "删除",                   file: "delete.gif" },
-  { value: "undo",       label: "撤销（Ctrl+Z）",         file: "undo.gif" },
-];
+  <script>
+    const ALL_EFFECTS = [
+      { value: "love520", label: "520（我爱你）" },
+      { value: "love521", label: "521（我愿意）" },
+      { value: "heart", label: "爱心" },
+      { value: "jump", label: "弹跳" },
+      { value: "mealtime", label: "用餐" },
+      { value: "sleep", label: "入睡" },
+      { value: "sleep2", label: "熟睡" },
+      { value: "morningReading", label: "晨读" },
+      { value: "morningDrink", label: "晨饮" },
+      { value: "afterWork", label: "下班" },
+      { value: "send", label: "发送" },
+      { value: "good", label: "点赞" },
+      { value: "delete", label: "删除" },
+      { value: "undo", label: "撤销" },
+      { value: "special", label: "特殊" },
+      { value: "music", label: "音乐" },
+      { value: "scroll", label: "滚动" },
+      { value: "default", label: "默认（睡眠）" },
+    ];
 
-// System entries that cannot be deleted
-const SYSTEM_ENTRIES = [
-  { id: "_night_sleep",    type: "timed",     effect: "sleep",  start: "23:00", end: "24:00",  interruptible: true,  enabled: true,  note: "夜间入睡" },
-  { id: "_night_sleep2",   type: "timed",     effect: "sleep2", start: "00:00", end: "02:00",  interruptible: true,  enabled: true,  note: "深夜熟睡" },
-  { id: "_mealtime_1",     type: "timed",     effect: "mealtime", start: "09:30", end: "10:10", interruptible: true,  enabled: true,  note: "早餐时间" },
-  { id: "_mealtime_2",     type: "timed",     effect: "mealtime", start: "12:00", end: "13:00", interruptible: true,  enabled: true,  note: "午餐时间" },
-  { id: "_mealtime_3",     type: "timed",     effect: "mealtime", start: "20:00", end: "21:00", interruptible: true,  enabled: true,  note: "晚餐时间" },
-];
+    let scheduleData = { windows: [], system: [] };
+    let customGifList = [];
 
-let scheduleData = { windows: [], system: [] };
-let draggedEntry = null;
-let draggedEl = null;
-let placeholder = null;
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function labelFor(value) {
+      const builtin = ALL_EFFECTS.find(e => e.value === value);
+      if (builtin) return builtin.label;
+      const custom = customGifList.find(g => g.value === value);
+      if (custom) return custom.label;
+      return value;
+    }
+    const uid = () => "u" + Math.random().toString(36).slice(2, 9);
+    function findEntry(id) {
+      return scheduleData.windows.find(e => e.id === id) || scheduleData.system.find(e => e.id === id);
+    }
 
-// Build effect select options HTML
-function effectOptions(current) {
-  return ALL_EFFECTS.map(e =>
-    `<option value="${e.value}" ${e.value === current ? 'selected' : ''}>${e.label}</option>`
-  ).join('');
-}
-
-// Render a user entry card
-function renderEntry(entry, index, isSystem) {
-  const isTimed = entry.type === 'timed';
-  const timeFields = isTimed
-    ? `<input type="time" value="${entry.start || '10:00'}" data-index="${index}" data-field="start" step="60">
-       <span class="sep">~</span>
-       <input type="time" value="${entry.end || '11:00'}" data-index="${index}" data-field="end" step="60">`
-    : `<input type="time" value="${entry.start || '05:20'}" data-index="${index}" data-field="start" step="60">
-       <span class="sep">—</span>
-       <span style="font-size:11px;color:var(--text-dim)">${isTimed ? '时段' : '精确时刻'}</span>`;
-
-  return `
-    <div class="entry" data-id="${entry.id}" data-index="${index}">
-      <div class="entry-top">
-        ${!isSystem ? `<span class="drag-handle" title="拖动排序">☰</span>` : ''}
-        <span class="type-badge ${entry.type}">${isTimed ? '时段' : '定时'}</span>
-        <div class="entry-time">${timeFields}</div>
-        <select class="entry-effect" data-index="${index}" data-field="effect">
-          ${effectOptions(entry.effect)}
-        </select>
-        <div class="entry-controls">
-          <label title="可被其他操作打断">
-            <input type="checkbox" ${entry.interruptible ? 'checked' : ''}
-              data-index="${index}" data-field="interruptible"> 可打断
-          </label>
-          ${!isSystem ? `<button class="btn-del" data-index="${index}">删除</button>` : ''}
+    function renderEntry(entry, index, isSystem) {
+      const effectChips = (entry.effects || []).map(e =>
+        `<span class="effect-chip" data-effect="${e}">${escapeHtml(labelFor(e))}<button class="chip-x" data-effect="${e}" title="移除">×</button></span>`
+      ).join("");
+      const builtinOpts = ALL_EFFECTS.map(e => `<option value="${e.value}">${e.label}</option>`).join("");
+      const customOpts = customGifList.length
+        ? `<optgroup label="我的 GIF">${customGifList.map(g => `<option value="${g.value}">${escapeHtml(g.label)}</option>`).join("")}</optgroup>`
+        : "";
+      return `
+      <div class="entry" data-id="${entry.id}" data-index="${index}" data-system="${isSystem}">
+        <div class="drag-handle">⠿</div>
+        <div class="entry-head">
+          <select class="entry-type" data-index="${index}" ${isSystem ? "disabled" : ""}>
+            <option value="scheduled" ${entry.type === "scheduled" ? "selected" : ""}>定时</option>
+            <option value="timed" ${entry.type === "timed" ? "selected" : ""}>时段</option>
+          </select>
+          <input class="entry-start" data-field="start" data-index="${index}" value="${entry.start || ""}" />
+          <span class="entry-sep">${entry.type === "scheduled" ? "" : "至"}</span>
+          <input class="entry-end" data-field="end" data-index="${index}" value="${entry.end || ""}" ${entry.type === "scheduled" ? "disabled" : ""} />
+          <label class="entry-int"><input type="checkbox" data-field="interruptible" data-index="${index}" ${entry.interruptible ? "checked" : ""} />可打断</label>
+          ${isSystem
+            ? '<span class="badge-system">系统</span>'
+            : `<button class="entry-del" data-index="${index}">删除</button>`}
         </div>
-      </div>
-      <div class="entry-bottom">
-        <span class="tag">优先级 #${index + 1}</span>
-        ${entry.note ? `<span class="tag">${entry.note}</span>` : ''}
-        ${ALL_EFFECTS.find(e => e.value === entry.effect)
-          ? `<span class="tag">📁 ${ALL_EFFECTS.find(e => e.value === entry.effect).file}</span>`
-          : ''}
-      </div>
-    </div>`;
-}
-
-function render() {
-  const scheduled = scheduleData.windows.filter(e => e.type === 'scheduled');
-  const timed = scheduleData.windows.filter(e => e.type === 'timed');
-  const system = scheduleData.system;
-
-  document.getElementById('scheduled-list').innerHTML =
-    scheduled.length ? scheduled.map((e, i) => renderEntry(e, i, false)).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:8px 0">暂无定时动画</div>';
-
-  document.getElementById('timed-list').innerHTML =
-    timed.length ? timed.map((e, i) => renderEntry(e, scheduled.length + i, false)).join('') : '<div style="color:var(--text-dim);font-size:12px;padding:8px 0">暂无时段互动</div>';
-
-  document.getElementById('system-list').innerHTML =
-    system.map((e, i) => renderEntry(e, scheduleData.windows.length + i, true)).join('');
-}
-
-// Read current values from DOM inputs
-function readFromDOM() {
-  const windows = [];
-  let idx = 0;
-
-  document.querySelectorAll('#scheduled-list .entry').forEach(el => {
-    const i = parseInt(el.dataset.index);
-    windows.push({
-      id: el.dataset.id,
-      type: 'scheduled',
-      start: el.querySelector('[data-field="start"]').value,
-      effect: el.querySelector('[data-field="effect"]').value,
-      interruptible: false,
-      enabled: true,
-    });
-  });
-
-  document.querySelectorAll('#timed-list .entry').forEach(el => {
-    windows.push({
-      id: el.dataset.id,
-      type: 'timed',
-      start: el.querySelector('[data-field="start"]').value,
-      end: el.querySelector('[data-field="end"]').value,
-      effect: el.querySelector('[data-field="effect"]').value,
-      interruptible: el.querySelector('[data-field="interruptible"]').checked,
-      enabled: true,
-    });
-  });
-
-  const system = scheduleData.system.map((e, i) => ({
-    ...e,
-    enabled: document.querySelector(`[data-id="${e.id}"] [data-field="interruptible"]`)?.checked ?? e.interruptible,
-  }));
-
-  return { windows, system };
-}
-
-// Event: change inputs → update data
-document.addEventListener('change', e => {
-  if (e.target.matches('[data-field]')) {
-    const idx = parseInt(e.target.dataset.index);
-    const field = e.target.dataset.field;
-    const entry = scheduleData.windows[idx];
-    if (entry) entry[field] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-  }
-});
-
-// Event: delete
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('btn-del')) {
-    const idx = parseInt(e.target.dataset.index);
-    scheduleData.windows.splice(idx, 1);
-    render();
-  }
-});
-
-// Event: add scheduled
-document.getElementById('btn-add-scheduled').addEventListener('click', () => {
-  scheduleData.windows.push({
-    id: `custom_${Date.now()}`,
-    type: 'scheduled',
-    start: '10:00',
-    effect: 'heart',
-    interruptible: false,
-    enabled: true,
-  });
-  render();
-  document.getElementById('scheduled-list').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-});
-
-// Event: add timed
-document.getElementById('btn-add-timed').addEventListener('click', () => {
-  scheduleData.windows.push({
-    id: `custom_${Date.now()}`,
-    type: 'timed',
-    start: '14:00',
-    end: '15:00',
-    effect: 'jump',
-    interruptible: true,
-    enabled: true,
-  });
-  render();
-  document.getElementById('timed-list').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-});
-
-// Drag-to-reorder (scheduled + timed)
-document.addEventListener('mousedown', e => {
-  if (!e.target.classList.contains('drag-handle')) return;
-  const entryEl = e.target.closest('.entry');
-  if (!entryEl) return;
-  draggedEl = entryEl;
-  const entries = [...document.querySelectorAll('#scheduled-list .entry, #timed-list .entry')];
-  draggedEntry = { el: entryEl, index: entries.indexOf(entryEl) };
-  entryEl.classList.add('dragging');
-
-  // Create placeholder
-  placeholder = document.createElement('div');
-  placeholder.className = 'drag-placeholder';
-
-  const onMove = e2 => {
-    if (!draggedEntry) return;
-    const entries2 = [...document.querySelectorAll('#scheduled-list .entry, #timed-list .entry')];
-    let insertBefore = null;
-    for (const el of entries2) {
-      if (el === draggedEl) continue;
-      const rect = el.getBoundingClientRect();
-      if (e2.clientY < rect.top + rect.height / 2) { insertBefore = el; break; }
+        <div class="entry-effects" data-id="${entry.id}">
+          ${effectChips}
+          <select class="effect-add" data-id="${entry.id}">
+            <option value="">+ 添加 GIF</option>
+            <optgroup label="内置动画">${builtinOpts}</optgroup>
+            ${customOpts}
+          </select>
+        </div>
+      </div>`;
     }
-    const ph = document.querySelector('.drag-placeholder');
-    if (insertBefore) {
-      insertBefore.parentElement.insertBefore(placeholder, insertBefore);
-    } else {
-      const list = document.querySelector('#timed-list');
-      list.appendChild(placeholder);
+
+    function render() {
+      const scheduled = scheduleData.windows.filter(e => e.type === "scheduled");
+      const timed = scheduleData.windows.filter(e => e.type === "timed");
+      const scheduledHtml = scheduled.map((e, i) => renderEntry(e, i, false)).join("");
+      const timedHtml = timed.map((e, i) => renderEntry(e, scheduled.length + i, false)).join("");
+      const systemHtml = scheduleData.system.map((e, i) => renderEntry(e, scheduleData.windows.length + i, true)).join("");
+      document.getElementById("scheduled-list").innerHTML = scheduledHtml;
+      document.getElementById("timed-list").innerHTML = timedHtml;
+      document.getElementById("system-list").innerHTML = systemHtml;
     }
-  };
 
-  const onUp = () => {
-    if (!draggedEntry) return;
-    draggedEl.classList.remove('dragging');
-    placeholder?.remove();
-    const entries3 = [...document.querySelectorAll('#scheduled-list .entry, #timed-list .entry')];
-    let newIndex = entries3.indexOf(placeholder);
-    if (newIndex < 0) newIndex = entries3.length;
-    placeholder?.remove();
+    function readFromDOM() {
+      const windows = [];
+      document.querySelectorAll('#scheduled-list .entry, #timed-list .entry').forEach(el => {
+        const id = el.dataset.id;
+        const entry = scheduleData.windows.find(e => e.id === id);
+        const type = el.querySelector('.entry-type').value;
+        const base = {
+          id,
+          type,
+          start: el.querySelector('[data-field="start"]').value,
+          effects: entry ? (entry.effects || []) : [],
+          interruptible: type === "scheduled" ? false : el.querySelector('[data-field="interruptible"]').checked,
+          enabled: true,
+        };
+        if (type === "timed") base.end = el.querySelector('[data-field="end"]').value;
+        windows.push(base);
+      });
+      const system = scheduleData.system.map(e => ({
+        ...e,
+        effects: e.effects || [],
+        enabled: document.querySelector(`[data-id="${e.id}"] [data-field="interruptible"]`)?.checked ?? e.enabled,
+      }));
+      return { windows, system };
+    }
 
-    // Reorder in data
-    if (draggedEntry.index !== newIndex && draggedEntry.index >= 0) {
-      const [moved] = scheduleData.windows.splice(draggedEntry.index, 1);
-      scheduleData.windows.splice(newIndex, 0, moved);
+    // ---- Event delegation ----
+    document.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t.classList.contains("entry-type") || t.classList.contains("entry-start") || t.classList.contains("entry-end") || t.classList.contains("entry-int")) {
+        const id = t.closest('.entry').dataset.id;
+        const entry = scheduleData.windows.find(en => en.id === id);
+        if (!entry) return;
+        const field = t.dataset.field;
+        if (t.classList.contains("entry-type")) entry.type = t.value;
+        else if (field === "interruptible") entry[field] = t.checked;
+        else entry[field] = t.value;
+        render();
+      } else if (t.classList.contains("effect-add")) {
+        const id = t.dataset.id;
+        const val = t.value;
+        if (val) {
+          const entry = findEntry(id);
+          if (entry && !entry.effects.includes(val)) entry.effects.push(val);
+        }
+        t.value = "";
+        render();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("chip-x")) {
+        const container = e.target.closest(".entry-effects");
+        const id = container.dataset.id;
+        const val = e.target.dataset.effect;
+        const entry = findEntry(id);
+        if (entry) entry.effects = entry.effects.filter(x => x !== val);
+        render();
+      } else if (e.target.classList.contains("entry-del")) {
+        const id = e.target.closest('.entry').dataset.id;
+        const idx = scheduleData.windows.findIndex(en => en.id === id);
+        if (idx >= 0) scheduleData.windows.splice(idx, 1);
+        render();
+      }
+    });
+
+    // ---- Drag reorder ----
+    let draggedEntry = null;
+    let placeholder = null;
+    document.addEventListener("mousedown", (e) => {
+      const handle = e.target.closest(".drag-handle");
+      if (!handle) return;
+      const entryEl = handle.closest(".entry");
+      draggedEntry = { el: entryEl, id: entryEl.dataset.id };
+      placeholder = document.createElement("div");
+      placeholder.className = "entry placeholder";
+      placeholder.style.height = entryEl.offsetHeight + "px";
+      entryEl.parentNode.insertBefore(placeholder, entryEl.nextSibling);
+      entryEl.classList.add("dragging");
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!draggedEntry) return;
+      const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const entryEl = elUnder && elUnder.closest('.entry:not(.placeholder)');
+      if (entryEl && entryEl !== draggedEntry.el) {
+        const rect = entryEl.getBoundingClientRect();
+        const before = (e.clientY - rect.top) / rect.height < 0.5;
+        entryEl.parentNode.insertBefore(placeholder, before ? entryEl : entryEl.nextSibling);
+      }
+    });
+    document.addEventListener("mouseup", () => {
+      if (!draggedEntry) return;
+      const entries = [...document.querySelectorAll('#scheduled-list .entry, #timed-list .entry')];
+      const dropIdx = entries.indexOf(placeholder);
+      const orderedIds = entries
+        .filter(el => el !== draggedEntry.el && el !== placeholder)
+        .map(el => el.dataset.id);
+      orderedIds.splice(dropIdx < 0 ? orderedIds.length : dropIdx, 0, draggedEntry.id);
+      // Reorder scheduleData.windows to match the new visual order
+      const byId = new Map(scheduleData.windows.map(e => [e.id, e]));
+      const reordered = orderedIds.map(id => byId.get(id)).filter(Boolean);
+      for (const e of scheduleData.windows) if (!orderedIds.includes(e.id)) reordered.push(e);
+      scheduleData.windows = reordered;
+      if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+      draggedEntry.el.classList.remove("dragging");
+      draggedEntry = null;
+      placeholder = null;
       render();
-    }
+    });
 
-    draggedEntry = null;
-    draggedEl = null;
-    placeholder = null;
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  };
+    // ---- Buttons ----
+    document.getElementById("btn-add-scheduled").addEventListener("click", () => {
+      scheduleData.windows.push({ id: uid(), type: "scheduled", start: "12:00", effects: [], interruptible: false, enabled: true });
+      render();
+    });
+    document.getElementById("btn-add-timed").addEventListener("click", () => {
+      scheduleData.windows.push({ id: uid(), type: "timed", start: "12:00", end: "13:00", effects: [], interruptible: true, enabled: true });
+      render();
+    });
+    document.getElementById("btn-import-gif").addEventListener("click", async () => {
+      const res = await window.linePuppySettings.importGif();
+      if (res && res.ok && res.asset) {
+        if (!customGifList.find(g => g.value === res.asset.value)) customGifList.push(res.asset);
+        render();
+      }
+    });
+    document.getElementById("btn-cancel").addEventListener("click", () => window.close());
+    document.getElementById("btn-save").addEventListener("click", () => {
+      window.linePuppySettings.saveSchedule(readFromDOM());
+      window.close();
+    });
 
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-});
-
-// Load data from main process
-window.linePuppySettings.loadSchedule().then(data => {
-  scheduleData = {
-    windows: data.windows || [],
-    system: data.system || SYSTEM_ENTRIES,
-  };
-  // Ensure system entries are always present
-  for (const sys of SYSTEM_ENTRIES) {
-    if (!scheduleData.system.find(e => e.id === sys.id)) {
-      scheduleData.system.push(sys);
-    }
-  }
-  render();
-});
-
-// Save
-document.getElementById('btn-save').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-save');
-  btn.disabled = true;
-  btn.textContent = '保存中…';
-  try {
-    const data = readFromDOM();
-    await window.linePuppySettings.saveSchedule(data);
-    window.close();
-  } catch (err) {
-    alert('保存失败：' + err.message);
-    btn.disabled = false;
-    btn.textContent = '保存';
-  }
-});
-
-document.getElementById('btn-cancel').addEventListener('click', () => window.close());
-</script>
+    // ---- Init ----
+    const normalize = (e) => {
+      if (!e.effects) e.effects = e.effect ? [e.effect] : [];
+      delete e.effect;
+      return e;
+    };
+    window.linePuppySettings.loadSchedule()
+      .then(data => {
+        scheduleData = {
+          windows: (data.windows || []).map(normalize),
+          system: (data.system || []).map(normalize),
+        };
+        return window.linePuppySettings.getCustomGifs();
+      })
+      .then(custom => {
+        customGifList = Array.isArray(custom) ? custom : [];
+        render();
+      });
+  </script>
 </body>
 </html>
