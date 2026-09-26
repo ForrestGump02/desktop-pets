@@ -266,6 +266,11 @@ window.linePuppyWindow?.onCustomGifs?.(gifs => {
   for (const gif of gifs) {
     if (gif && gif.value && gif.file) animations[gif.value] = gif.file;
   }
+  // Re-evaluate timed interactions now that the animations map is populated.
+  // This also handles the startup race: if pet:custom-gifs arrived before
+  // pet:schedule-changed, scheduleData is already set and the timed window
+  // can now correctly resolve to its effect and call setPetState.
+  if (typeof updateTimedInteractions === "function") updateTimedInteractions();
 });
 
 // ──────────────────────────────────────────────
