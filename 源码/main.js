@@ -262,9 +262,10 @@ function createSettingsWindow() {
 ipcMain.handle("settings:load-schedule", () => loadSchedule());
 ipcMain.handle("settings:save-schedule", (_event, data) => {
   saveSchedule(data);
-  // Notify pet window of schedule change
+  // Notify pet window of schedule change AND updated custom GIFs list
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send("pet:schedule-changed", loadSchedule());
+    petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
   }
 });
 ipcMain.handle("settings:get-custom-gifs", () => getCustomGifs());
@@ -297,6 +298,10 @@ ipcMain.handle("settings:import-gif", async () => {
     customAssets.push(asset);
     saveSettings({ customAssets });
   }
+  // Notify pet window so it registers the new GIF into the animations map
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
+  }
   return { ok: true, asset: { value: asset.value, label: asset.label, file: `gif://${asset.file}` } };
 });
 ipcMain.handle("settings:delete-gif", (_event, value) => {
@@ -306,6 +311,10 @@ ipcMain.handle("settings:delete-gif", (_event, value) => {
   const name = value.startsWith("user/") ? value.slice(5) : value;
   const filePath = path.join(USER_GIFS_DIR(), name);
   if (fs.existsSync(filePath)) { try { fs.unlinkSync(filePath); } catch { /* ignore */ } }
+  // Notify pet window of updated custom GIFs list after deletion
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
+  }
   return { ok: true };
 });
 
