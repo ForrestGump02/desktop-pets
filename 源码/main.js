@@ -100,7 +100,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     // Custom protocol to serve user-imported GIFs from userData (writable, survives reinstall)
     protocol.registerFileProtocol("gif", (request, callback) => {
-      const name = decodeURIComponent(request.url.replace(/^gif:\/\/?/, ""));
+      let name = request.url.replace(/^gif:\/\/?/, "");
+      try { name = decodeURIComponent(name); } catch { /* keep raw if malformed */ }
       callback(path.join(app.getPath("userData"), "user-gifs", name));
     });
 
@@ -220,7 +221,9 @@ function loadCustomGifsForRenderer() {
   return getCustomGifs().map(a => ({
     value: a.value,
     label: a.label,
-    file: `gif://${a.file}`,
+    // Percent-encode so non-ASCII filenames (e.g. Chinese) survive URL parsing.
+    // A raw `gif://中文.gif` is not percent-encoded by Chromium and never reaches the handler.
+    file: `gif://${encodeURIComponent(a.file)}`,
   }));
 }
 
@@ -302,7 +305,7 @@ ipcMain.handle("settings:import-gif", async () => {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
   }
-  return { ok: true, asset: { value: asset.value, label: asset.label, file: `gif://${asset.file}` } };
+  return { ok: true, asset: { value: asset.value, label: asset.label, file: `gif://${encodeURIComponent(asset.file)}` } };
 });
 ipcMain.handle("settings:delete-gif", (_event, value) => {
   const settings = loadSettings();
