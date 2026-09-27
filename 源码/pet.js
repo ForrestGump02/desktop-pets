@@ -48,6 +48,7 @@ const TASK_COMPLETE_GIF_DURATION_MS = 2060;
 const TASK_COMPLETE_PLAY_COUNT = 2;
 const HEART_GIF_DURATION_MS = 1440;
 const STARTUP_GIF_DURATION_MS = 2900;
+const TIMED_INTERACTION_SWITCH_MS = 5000;
 const SCROLL_GIF_DURATION_MS = 1440;
 const SCROLL_IDLE_MS = 160;
 const KEYBOARD_GIF_DURATION_MS = { send: 1740, good: 1000, delete: 1840, undo: 2000 };
@@ -61,7 +62,7 @@ const BASE_HIT_AREA_WIDTH = 170;
 const BASE_HIT_AREA_HEIGHT = 150;
 const WINDOW_PADDING_X = 36;
 const WINDOW_PADDING_Y = 56;
-const MIN_SCALE = 0.6;
+const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const DRAG_THRESHOLD_PX = 4;
 
@@ -102,6 +103,7 @@ let taskCompleteAfterScheduled = false;
 let timedInteractionPlaying = false;
 let timedInteractionEffect = "";
 let timedInteractionEntryId = "";
+let timedInteractionTimer = 0;
 let musicPlaybackState = "idle";
 let musicCycleTimer = 0;
 let musicLoadListener = null;
@@ -276,8 +278,20 @@ window.linePuppyWindow?.onCustomGifs?.(gifs => {
 // ──────────────────────────────────────────────
 // State machine
 // ──────────────────────────────────────────────
+// States that are driven purely by user interaction. When the desktop is
+// locked the pet is click-through, so these must be suppressed; automatic
+// states (timed-interaction cycling, scheduled events, music, mealtime, …)
+// remain allowed.
+const INTERACTION_STATES = new Set([
+  "hover", "click", "drag", "scroll", "send", "good", "delete", "undo"
+]);
 function setPetState(nextState, options = {}) {
-  if (desktopLocked && nextState !== "default") return;
+  // When the desktop is locked the pet becomes click-through and must ignore
+  // user-driven states (hover/click/drag/scroll/keyboard), but it should still
+  // play automatic animations — timed-interaction cycling, scheduled events,
+  // music, mealtime, etc. Blocking every non-default state used to freeze
+  // those as well, which also killed GIF cycling while locked.
+  if (desktopLocked && INTERACTION_STATES.has(nextState)) return;
   if (startupPlaying && nextState !== "startup") return;
   if (isScheduledAnimationLocked() && nextState !== currentState) return;
   if (!animations[nextState]) nextState = "default";
@@ -379,6 +393,7 @@ function updateMusicAnimation() {
 }
 
 function stopTimedInteraction(restore = true) {
+  if (timedInteractionTimer) { window.clearTimeout(timedInteractionTimer); timedInteractionTimer = 0; }
   const wasDisplaying = currentState === timedInteractionEffect;
   timedInteractionPlaying = false;
   timedInteractionEffect = "";
@@ -388,15 +403,39 @@ function stopTimedInteraction(restore = true) {
   setPetState("default", { force: true });
 }
 
+function pickRandomEffect(list, exclude) {
+  if (list.length <= 1) return list[0];
+  const choices = list.filter((e) => e !== exclude);
+  const pool = choices.length ? choices : list;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function scheduleTimedSwitch(list, entryId) {
+  if (timedInteractionTimer) { window.clearTimeout(timedInteractionTimer); timedInteractionTimer = 0; }
+  if (list.length <= 1) return;
+  timedInteractionTimer = window.setTimeout(() => {
+    timedInteractionTimer = 0;
+    if (!timedInteractionPlaying || timedInteractionEntryId !== entryId) return;
+    // Don't yank the GIF away while the user is actively interacting with the pet.
+    const blockedByInteraction = isHovering || isPressing || isDragging || isScaling ||
+      currentState === "taskComplete" || isScheduledAnimationLocked() ||
+      (musicPlaybackState === "playing");
+    if (blockedByInteraction) { scheduleTimedSwitch(list, entryId); return; }
+    playTimedInteraction({ id: entryId, effects: list });
+  }, TIMED_INTERACTION_SWITCH_MS);
+}
+
 function playTimedInteraction(entry) {
   const list = (entry.effects && entry.effects.length) ? entry.effects : (entry.effect ? [entry.effect] : []);
   if (list.length === 0) return;
-  // Pick a random effect so multiple GIFs feel varied
-  const effect = list[Math.floor(Math.random() * list.length)];
+  // Pick a random effect (different from the current one when possible) so multiple
+  // GIFs in one timed window cycle through instead of sticking on the first pick.
+  const effect = pickRandomEffect(list, timedInteractionEffect);
   setPetState(effect, { force: true });
   timedInteractionPlaying = true;
   timedInteractionEffect = effect;
   timedInteractionEntryId = entry.id || "";
+  scheduleTimedSwitch(list, entry.id || "");
 }
 
 function stopScheduledAnimation(restore = true) {
