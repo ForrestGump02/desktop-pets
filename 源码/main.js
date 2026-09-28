@@ -264,11 +264,17 @@ function createSettingsWindow() {
 // --- IPC: settings window ↔ main process ---
 ipcMain.handle("settings:load-schedule", () => loadSchedule());
 ipcMain.handle("settings:save-schedule", (_event, data) => {
-  saveSchedule(data);
-  // Notify pet window of schedule change AND updated custom GIFs list
-  if (petWindow && !petWindow.isDestroyed()) {
-    petWindow.webContents.send("pet:schedule-changed", loadSchedule());
-    petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
+  try {
+    saveSchedule(data);
+    // Notify pet window of schedule change AND updated custom GIFs list
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send("pet:schedule-changed", loadSchedule());
+      petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("Failed to save schedule:", err);
+    return { ok: false, error: err.message };
   }
 });
 ipcMain.handle("settings:get-custom-gifs", () => getCustomGifs());

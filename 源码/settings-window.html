@@ -415,8 +415,12 @@
       }
     });
     document.getElementById("btn-cancel").addEventListener("click", () => window.close());
-    document.getElementById("btn-save").addEventListener("click", () => {
-      window.linePuppySettings.saveSchedule(readFromDOM());
+    document.getElementById("btn-save").addEventListener("click", async () => {
+      const res = await window.linePuppySettings.saveSchedule(readFromDOM());
+      if (res && !res.ok) {
+        alert("保存失败：" + (res.error || "未知错误"));
+        return;
+      }
       window.close();
     });
 
