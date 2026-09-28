@@ -257,6 +257,10 @@ window.linePuppyWindow?.onScheduleChange?.(data => {
   if (!data) return;
   const merged = [].concat(data.windows || [], data.system || []);
   if (merged.length) SCHEDULE_WINDOWS = merged;
+  // If a timed interaction is currently playing, its effects list may have changed
+  // (e.g. user removed a GIF via settings). Stop it so updateTimedInteractions() can
+  // re-evaluate with the new schedule and avoid carrying a deleted GIF in rotation.
+  if (timedInteractionPlaying) stopTimedInteraction(true);
   // Re-evaluate immediately
   updateTimedInteractions();
   updateScheduledAnimations();
