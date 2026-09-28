@@ -12,7 +12,7 @@
     "predist:mac": "npm run build:mac-input-listener",
     "start": "electron .",
     "task-complete": "electron . --task-complete",
-    "dist:win": "electron-builder --win nsis --x64 --ia32 --publish never",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
     "dist:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --universal --publish never"
   },
   "build": {
