@@ -53,6 +53,33 @@
     }
     .btn-import { background: var(--accent-2); }
     .btn-add:hover, .btn-import:hover { filter: brightness(1.08); }
+    #custom-gifs-section { padding: 4px 0 10px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
+    .gif-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+    }
+    .gif-thumb {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      background: var(--panel);
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+    .gif-label { flex: 1; color: var(--text); word-break: break-all; }
+    .gif-del {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 5px;
+      padding: 3px 10px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .gif-del:hover { background: var(--danger); color: #11111b; }
     .list-title {
       margin: 14px 16px 6px;
       font-size: 12px;
@@ -188,6 +215,11 @@
     <button class="btn-import" id="btn-import-gif">📥 导入 GIF</button>
   </div>
 
+  <div id="custom-gifs-section">
+    <div class="list-title">我的 GIF（导入的动图，点「删除」可移除）</div>
+    <div id="custom-gifs-list"></div>
+  </div>
+
   <div class="list-title">定时动画（精确时刻，不可打断）</div>
   <div id="scheduled-list"></div>
 
@@ -289,6 +321,20 @@
       document.getElementById("system-list").innerHTML = systemHtml;
     }
 
+    function renderCustomGifs() {
+      const list = document.getElementById("custom-gifs-list");
+      if (!customGifList.length) {
+        list.innerHTML = '<div class="hint" style="padding-top:0">暂无导入的 GIF。点击上方「📥 导入 GIF」添加你自己的动图。</div>';
+        return;
+      }
+      list.innerHTML = customGifList.map(g => `
+        <div class="gif-item" data-value="${escapeHtml(g.value)}">
+          <img class="gif-thumb" src="gif://${encodeURIComponent(g.file)}" alt="" onerror="this.style.display='none'" />
+          <span class="gif-label">${escapeHtml(g.label)}</span>
+          <button class="gif-del" data-value="${escapeHtml(g.value)}" title="删除该 GIF">删除</button>
+        </div>`).join("");
+    }
+
     function readFromDOM() {
       const windows = [];
       document.querySelectorAll('#scheduled-list .entry, #timed-list .entry').forEach(el => {
@@ -335,6 +381,27 @@
         }
         t.value = "";
         render();
+      }
+    });
+
+    // Delete an imported GIF from the library, and strip every reference to it.
+    document.getElementById("custom-gifs-list").addEventListener("click", async (e) => {
+      const btn = e.target.closest(".gif-del");
+      if (!btn) return;
+      const value = btn.dataset.value;
+      const asset = customGifList.find(g => g.value === value);
+      const label = asset ? asset.label : value;
+      if (!confirm(`确定删除 GIF「${label}」吗？\n该文件将被永久删除，且所有引用它的动画时段也会一并移除。`)) return;
+      const res = await window.linePuppySettings.deleteGif(value);
+      if (res && res.ok) {
+        const strip = (entry) => { if (entry.effects) entry.effects = entry.effects.filter(x => x !== value); };
+        scheduleData.windows.forEach(strip);
+        scheduleData.system.forEach(strip);
+        customGifList = customGifList.filter(g => g.value !== value);
+        render();
+        renderCustomGifs();
+      } else {
+        alert("删除失败：" + (res && res.error ? res.error : "未知错误"));
       }
     });
 
@@ -412,6 +479,7 @@
       if (res && res.ok && res.asset) {
         if (!customGifList.find(g => g.value === res.asset.value)) customGifList.push(res.asset);
         render();
+        renderCustomGifs();
       }
     });
     document.getElementById("btn-cancel").addEventListener("click", () => window.close());
@@ -441,6 +509,7 @@
       .then(custom => {
         customGifList = Array.isArray(custom) ? custom : [];
         render();
+        renderCustomGifs();
       });
   </script>
 </body>
