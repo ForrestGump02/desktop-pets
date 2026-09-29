@@ -247,7 +247,9 @@
       const isTimed = entry.type === "timed";
       const toggleHtml = isSystem
         ? `<label class="entry-int"><input type="checkbox" data-field="enabled" ${entry.enabled !== false ? "checked" : ""} />启用</label><span class="badge-system">系统</span>`
-        : (isTimed ? `<label class="entry-int"><input type="checkbox" data-field="interruptible" ${entry.interruptible ? "checked" : ""} />可打断</label>` : "");
+        : (isTimed
+          ? `<label class="entry-int"><input type="checkbox" data-field="interruptible" ${entry.interruptible ? "checked" : ""} />可打断</label><button class="entry-del" title="删除该动画">删除</button>`
+          : `<button class="entry-del" title="删除该动画">删除</button>`);
       return `
       <div class="entry ${isSystem ? "entry-system" : ""}" data-id="${entry.id}" data-system="${isSystem}">
         ${isSystem ? "" : '<div class="drag-handle" title="拖动排序">⠿</div>'}
