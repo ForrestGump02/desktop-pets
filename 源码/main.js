@@ -202,7 +202,11 @@ function loadSchedule() {
   const systemMap = {};
   for (const s of SYSTEM_ENTRIES) {
     const savedSys = (saved.system || []).find(e => e.id === s.id);
-    systemMap[s.id] = normalizeEffects({ ...s, enabled: savedSys ? savedSys.enabled : true });
+    systemMap[s.id] = normalizeEffects({
+      ...s,
+      enabled: savedSys ? savedSys.enabled !== false : true,
+      ...(savedSys && Array.isArray(savedSys.effects) ? { effects: savedSys.effects } : {}),
+    });
   }
   const system = Object.values(systemMap);
   return { windows, system };
@@ -311,7 +315,7 @@ ipcMain.handle("settings:import-gif", async () => {
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
   }
-  return { ok: true, asset: { value: asset.value, label: asset.label, file: `gif://${encodeURIComponent(asset.file)}` } };
+  return { ok: true, asset: { value: asset.value, label: asset.label, file: asset.file } };
 });
 ipcMain.handle("settings:delete-gif", (_event, value) => {
   const settings = loadSettings();
@@ -326,6 +330,85 @@ ipcMain.handle("settings:delete-gif", (_event, value) => {
   }
   return { ok: true };
 });
+
+// --- Config export / import (backup & restore across reinstalls) ---
+const CONFIG_BACKUP_PREFIX = "line-puppy-config-";
+
+async function exportConfigImpl() {
+  const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : petWindow;
+  const result = await dialog.showOpenDialog(parent, {
+    title: "选择配置导出位置",
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths.length) return { ok: false, canceled: true };
+  const destDir = result.filePaths[0];
+  const stamp = new Date().toISOString().slice(0, 10);
+  const backupDir = path.join(destDir, CONFIG_BACKUP_PREFIX + stamp);
+  try {
+    fs.mkdirSync(backupDir, { recursive: true });
+    const settingsPath = getSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      fs.copyFileSync(settingsPath, path.join(backupDir, "settings.json"));
+    }
+    const gifsDir = USER_GIFS_DIR();
+    if (fs.existsSync(gifsDir)) {
+      const target = path.join(backupDir, "user-gifs");
+      fs.mkdirSync(target, { recursive: true });
+      for (const f of fs.readdirSync(gifsDir)) {
+        const full = path.join(gifsDir, f);
+        if (fs.statSync(full).isFile()) fs.copyFileSync(full, path.join(target, f));
+      }
+    }
+    return { ok: true, path: backupDir };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+async function importConfigImpl() {
+  const parent = settingsWindow && !settingsWindow.isDestroyed() ? settingsWindow : petWindow;
+  const result = await dialog.showOpenDialog(parent, {
+    title: "选择配置文件夹（需含 settings.json）",
+    properties: ["openDirectory"],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths.length) return { ok: false, canceled: true };
+  const srcDir = result.filePaths[0];
+  const settingsFile = path.join(srcDir, "settings.json");
+  if (!fs.existsSync(settingsFile)) {
+    return { ok: false, error: "该文件夹不含 settings.json，不是有效的配置备份。" };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+  } catch {
+    return { ok: false, error: "settings.json 无法解析，文件可能已损坏。" };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, error: "settings.json 内容无效。" };
+  }
+  try {
+    fs.copyFileSync(settingsFile, getSettingsPath());
+    const srcGifs = path.join(srcDir, "user-gifs");
+    if (fs.existsSync(srcGifs)) {
+      const dest = USER_GIFS_DIR();
+      fs.mkdirSync(dest, { recursive: true });
+      for (const f of fs.readdirSync(srcGifs)) {
+        const full = path.join(srcGifs, f);
+        if (fs.statSync(full).isFile()) fs.copyFileSync(full, path.join(dest, f));
+      }
+    }
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send("pet:schedule-changed", loadSchedule());
+      petWindow.webContents.send("pet:custom-gifs", loadCustomGifsForRenderer());
+    }
+    return { ok: true, path: srcDir };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+ipcMain.handle("settings:export-config", () => exportConfigImpl());
+ipcMain.handle("settings:import-config", () => importConfigImpl());
 
 // --- IPC: desktop-lock ---
 ipcMain.handle("desktop-lock:get", () => desktopLocked);

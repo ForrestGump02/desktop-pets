@@ -126,8 +126,3 @@ body {
 body.desktop-locked #controls,
 body.desktop-locked #close-tip { display: none; }
 body.desktop-locked #pet-hit-area { cursor: default; pointer-events: none; }
-
-/* desktop-lock */
-body.desktop-locked #controls,
-body.desktop-locked #close-tip { display: none; }
-body.desktop-locked #pet-hit-area { cursor:default; pointer-events:none; }
