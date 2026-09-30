@@ -63,9 +63,9 @@ button, select, input { font-family: inherit; font-size: 13px; }
 }
 .vt {
   position: relative;
+  min-width: 760px;
   height: 768px; /* 24h × 32px */
   --lanes: 1;
-  --col-w: calc((100% - 110px) / var(--lanes));
 }
 .vt-rail { position: absolute; left: 60px; top: 0; bottom: 0; width: 2px; background: var(--border); }
 .vt-hour {
@@ -87,30 +87,30 @@ button, select, input { font-family: inherit; font-size: 13px; }
   background: var(--panel); padding: 1px 6px; border-radius: 4px;
 }
 .vt-card {
-  position: absolute; height: 42px; padding: 0 12px;
+  position: absolute; height: 36px; padding: 0 10px;
   background: var(--card-2);
   border-left: 4px solid var(--accent);
   border-radius: 8px;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 6px;
   cursor: grab; user-select: none;
   box-shadow: 0 1px 3px rgba(0,0,0,.3);
   z-index: 2; font-size: 12px;
-  left: calc(80px + var(--lane) * (var(--col-w) + 6px));
-  width: calc(var(--col-w) - 6px);
-  max-width: 360px;
+  left: calc(80px + var(--lane) * 226px);
+  width: 220px;
   overflow: hidden;
+  white-space: nowrap;
 }
 .vt-card:hover { filter: brightness(1.08); }
 .vt-card.sel { outline: 2px solid var(--accent-2); outline-offset: 1px; z-index: 6; }
 .vt-card:active { cursor: grabbing; }
 .vt-card-time {
-  font-weight: 700; font-variant-numeric: tabular-nums; min-width: 92px;
+  font-weight: 700; font-variant-numeric: tabular-nums; flex: 1 1 auto; overflow: hidden; text-overflow: clip;
 }
 .vt-card-label {
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .vt-card-type, .vt-card-sys {
-  font-size: 10px; padding: 2px 6px; border-radius: 4px;
+  font-size: 10px; padding: 1px 5px; border-radius: 4px;
   background: rgba(255,255,255,.06); color: var(--muted); flex: 0 0 auto;
 }
 .vt-card-sys { background: rgba(243,139,168,.15); color: var(--danger); }
