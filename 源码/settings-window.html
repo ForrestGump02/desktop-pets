@@ -64,25 +64,20 @@ button, select, input { font-family: inherit; font-size: 13px; }
 .tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); opacity: .55; }
 .tl-now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--danger); z-index: 7; box-shadow: 0 0 6px rgba(243,139,168,.7); }
 .tl-block {
-  position: absolute; height: 38px; display: flex; align-items: center; gap: 4px;
-  padding: 0 8px; border-radius: 8px; font-size: 11px; color: #11111b;
-  background: var(--accent); overflow: hidden; white-space: nowrap; cursor: grab;
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; color: #1f1f2e; font-weight: 700; cursor: grab;
+  background: var(--accent); overflow: hidden; white-space: nowrap;
   box-shadow: 0 1px 3px rgba(0,0,0,.35); z-index: 2; user-select: none;
 }
-.tl-block.tl-sys { background: var(--sys); color: #f2f2fa; }
-.tl-block.tl-timed { }
-.tl-block.tl-scheduled { padding: 0 6px; border-radius: 12px; height: 26px; }
+.tl-block.tl-timed { padding: 0 8px; height: 38px; font-size: 12px; }
+.tl-block.tl-scheduled { padding: 0 8px; border-radius: 12px; height: 24px; font-size: 11px; }
 .tl-block.sel { outline: 2px solid var(--accent-2); outline-offset: 1px; z-index: 6; }
 .tl-block:active { cursor: grabbing; }
-.tl-dot { width: 7px; height: 7px; border-radius: 50%; background: #11111b; flex: 0 0 auto; }
-.tl-ico { flex: 0 0 auto; opacity: .85; }
-.tl-label { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.tl-time { flex: 0 0 auto; opacity: .85; font-variant-numeric: tabular-nums; margin-left: auto; }
-.tl-scheduled .tl-time { margin-left: 0; opacity: .75; }
+.tl-time-big { font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255,255,255,.18); }
 .tl-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .tl-handle.tl-l { left: 0; } .tl-handle.tl-r { right: 0; }
-.tl-handle:after { content: ""; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 1px; background: rgba(17,17,27,.45); }
-.tl-block:hover .tl-handle:after { background: rgba(17,17,27,.85); }
+.tl-handle:after { content: ""; position: absolute; top: 10px; bottom: 10px; left: 3px; width: 1px; background: rgba(31,31,46,.45); }
+.tl-block:hover .tl-handle:after { background: rgba(31,31,46,.85); }
 
 /* ---- editor ---- */
 .tl-editor { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--card-2); }
@@ -133,7 +128,7 @@ button, select, input { font-family: inherit; font-size: 13px; }
   <!-- 24h 时间轴 -->
   <section class="card">
     <h2 class="card-title">24 小时时间轴</h2>
-    <p class="card-desc">🟦 时段动画（一段时间内循环）　● 定时动画（到点触发一次）　🔒 系统内置（三餐 / 睡眠）</p>
+    <p class="card-desc">横条=时段，圆角小标记=定时；颜色代表动画类别（图例）。点色块编辑，拖动改时间，拖两端改时长。</p>
     <div class="tl-axis" id="tl-axis"></div>
     <div class="tl-track" id="tl-track"></div>
     <div class="row-actions">
@@ -141,12 +136,7 @@ button, select, input { font-family: inherit; font-size: 13px; }
       <button class="btn-add" id="btn-add-timed">+ 时段动画</button>
     </div>
     <div class="tl-editor" id="tl-editor" hidden></div>
-    <div class="legend">
-      <span><i style="background:var(--accent)"></i>自定义时段</span>
-      <span><i style="background:var(--accent);border-radius:50%"></i>自定义定时</span>
-      <span><i style="background:var(--sys)"></i>系统内置</span>
-      <span><i style="background:var(--danger)"></i>当前时间</span>
-    </div>
+    <div class="legend" id="tl-legend"></div>
   </section>
 
   <!-- 我的 GIF -->
@@ -186,6 +176,50 @@ const ALL_EFFECTS = [
 ];
 
 const ROW_H = 46;
+
+const CATS = {
+  love:   { color: "#f38ba8", name: "爱情",      effects: ["love520","love521","heart"] },
+  meal:   { color: "#fab387", name: "用餐",      effects: ["mealtime","morningDrink"] },
+  sleep:  { color: "#cba6f7", name: "睡眠",      effects: ["sleep","sleep2","default"] },
+  work:   { color: "#94e2d5", name: "学习·工作",  effects: ["morningReading","afterWork"] },
+  act:    { color: "#89dceb", name: "互动",      effects: ["send","good","delete","undo","jump"] },
+  media:  { color: "#f5c2e7", name: "媒体",      effects: ["music","scroll","special"] },
+  custom: { color: "#f9e2af", name: "自定义·GIF", match: v => /^user\//.test(v) },
+  empty:  { color: "#6c7080", name: "未设置" },
+};
+const CAT_ORDER = ["love","meal","sleep","work","act","media","custom","empty"];
+function categoryOf(v) {
+  for (const k of CAT_ORDER) {
+    const c = CATS[k];
+    if (c.match && c.match(v)) return k;
+    if (c.effects && c.effects.includes(v)) return k;
+  }
+  return "empty";
+}
+function darken(hex, amt) {
+  amt = amt == null ? 0.6 : amt;
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return hex;
+  const r = Math.round(parseInt(m[1],16)*amt);
+  const g = Math.round(parseInt(m[2],16)*amt);
+  const b = Math.round(parseInt(m[3],16)*amt);
+  return "#" + [r,g,b].map(x => x.toString(16).padStart(2,"0")).join("");
+}
+function blockColor(value, isSys) {
+  const c = CATS[categoryOf(value)] || CATS.empty;
+  return isSys ? darken(c.color) : c.color;
+}
+function renderLegend() {
+  const el = document.getElementById("tl-legend");
+  if (!el) return;
+  el.innerHTML =
+    CAT_ORDER.filter(k => k !== "empty").map(k =>
+      `<span><i style="background:${CATS[k].color}"></i>${CATS[k].name}</span>`
+    ).join("") +
+    `<span><i style="background:#5b5b75"></i>系统内置（颜色偏暗）</span>` +
+    `<span><i style="background:var(--danger);height:2px;width:14px;border-radius:0"></i>当前时间</span>`;
+}
+
 let scheduleData = { windows: [], system: [] };
 let customGifList = [];
 let selectedId = null;
@@ -255,17 +289,20 @@ function blockHtml(b) {
   const left = (b.startMin / 1440 * 100).toFixed(4);
   const top = b.lane * ROW_H + 4;
   const sel = e.id === selectedId ? " sel" : "";
-  const label = (e.effects || []).map(labelFor).join("、") || "（未设置动图）";
+  const effs = e.effects || [];
+  const color = blockColor(effs[0] || "", b.isSys);
+  const labelText = effs.map(labelFor).join("、") || "未设置动图";
+  const timeStr = b.isTimed ? `${e.start || ""}–${e.end || ""}` : (e.start || "");
+  const title = (b.isSys ? "【系统内置】" : "") + labelText + "  " + timeStr;
   if (b.isTimed) {
     const width = Math.max(1.6, (b.endMin - b.startMin) / 1440 * 100).toFixed(4);
-    const time = `${e.start}–${e.end}`;
-    return `<div class="tl-block tl-timed${b.isSys ? " tl-sys" : ""}${sel}" data-id="${e.id}" style="left:${left}%;width:${width}%;top:${top}px">
-      <span class="tl-ico">${b.isSys ? "🔒" : "▭"}</span><span class="tl-label">${escapeHtml(label)}</span><span class="tl-time">${escapeHtml(time)}</span>
+    return `<div class="tl-block tl-timed${sel}" data-id="${e.id}" title="${escapeHtml(title)}" style="left:${left}%;width:${width}%;top:${top}px;background:${color}">
+      <span class="tl-time-big">${escapeHtml(timeStr)}</span>
       <span class="tl-handle tl-l"></span><span class="tl-handle tl-r"></span>
     </div>`;
   }
-  return `<div class="tl-block tl-scheduled${b.isSys ? " tl-sys" : ""}${sel}" data-id="${e.id}" style="left:${left}%;top:${top}px">
-    <span class="tl-dot"></span><span class="tl-time">${escapeHtml(e.start)}</span><span class="tl-label">${escapeHtml(label)}</span>
+  return `<div class="tl-block tl-scheduled${sel}" data-id="${e.id}" title="${escapeHtml(title)}" style="left:${left}%;top:${top}px;background:${color}">
+    <span class="tl-time-big">${escapeHtml(timeStr)}</span>
   </div>`;
 }
 
@@ -490,6 +527,7 @@ function reloadAll() {
     })
     .then(custom => {
       customGifList = Array.isArray(custom) ? custom : [];
+      renderLegend();
       renderAxis();
       renderTimeline();
       renderEditor();
