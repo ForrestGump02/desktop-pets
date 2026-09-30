@@ -1,499 +1,504 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>动画日程 · line puppy</title>
-  <style>
-    :root {
-      --bg: #181825;
-      --panel: #1e1e2e;
-      --card: #232336;
-      --card-2: #2a2a40;
-      --text: #e6e6f0;
-      --muted: #9a9ab0;
-      --accent: #89b4fa;
-      --accent-2: #a6e3a1;
-      --border: #363650;
-      --danger: #f38ba8;
-      --radius: 12px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-    header {
-      padding: 18px 20px 14px;
-      background: linear-gradient(180deg, #232336, #1e1e2e);
-      border-bottom: 1px solid var(--border);
-    }
-    header h1 { margin: 0 0 4px; font-size: 17px; }
-    header p { margin: 0; color: var(--muted); font-size: 12px; }
-    main { padding: 16px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .card-title { margin: 0 0 2px; font-size: 14px; font-weight: 700; }
-    .card-desc { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
-    button, select, input { font-family: inherit; font-size: 13px; }
-    .btn-add, .btn-import, .btn-ghost, .btn-save, .btn-cancel {
-      border-radius: 8px; cursor: pointer; font-weight: 600; border: 1px solid transparent;
-    }
-    .btn-add { background: var(--accent); color: #11111b; padding: 7px 12px; }
-    .btn-import { background: var(--card-2); color: var(--text); border-color: var(--border); padding: 7px 12px; }
-    .btn-ghost { background: var(--card-2); color: var(--text); border-color: var(--border); padding: 7px 12px; }
-    .btn-ghost:hover { border-color: var(--accent); }
-    .btn-add:hover, .btn-import:hover { filter: brightness(1.08); }
-    .row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-    .template-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .template-card {
-      background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
-      padding: 12px; cursor: pointer; transition: border-color .15s, transform .1s;
-    }
-    .template-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .template-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-    .template-desc { color: var(--muted); font-size: 11px; }
-    .entry {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 10px; margin: 8px 0; background: var(--panel);
-      border: 1px solid var(--border); border-radius: 10px;
-    }
-    .entry-system { background: #20203a; }
-    .entry.dragging { opacity: .4; }
-    .entry.placeholder { background: transparent; border: 2px dashed var(--accent); height: 48px; }
-    .drag-handle { cursor: grab; color: var(--muted); font-size: 16px; user-select: none; line-height: 1; flex: 0 0 auto; }
-    .entry-icon { font-size: 15px; width: 18px; text-align: center; flex: 0 0 auto; }
-    .entry-head { display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; }
-    .entry-type, .entry-start, .entry-end {
-      background: var(--card-2); color: var(--text); border: 1px solid var(--border);
-      border-radius: 6px; padding: 4px 6px;
-    }
-    .entry-start, .entry-end { width: 64px; text-align: center; }
-    .entry-int { display: flex; align-items: center; gap: 3px; color: var(--muted); font-size: 12px; }
-    .entry-del {
-      background: transparent; color: var(--danger); border: 1px solid var(--danger);
-      border-radius: 6px; padding: 3px 8px; cursor: pointer; margin-left: auto;
-    }
-    .entry-del:hover { background: var(--danger); color: #11111b; }
-    .badge-system { background: var(--border); color: var(--muted); border-radius: 6px; padding: 2px 8px; font-size: 11px; margin-left: auto; }
-    .entry-effects { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; padding-top: 8px; margin-top: 6px; border-top: 1px dashed var(--border); }
-    .effect-chip {
-      display: inline-flex; align-items: center; gap: 4px; background: var(--card-2);
-      border: 1px solid var(--accent); color: var(--accent); border-radius: 14px;
-      padding: 2px 4px 2px 10px; font-size: 12px;
-    }
-    .chip-x { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
-    .chip-x:hover { color: var(--danger); }
-    .effect-add { background: var(--card-2); color: var(--text); border: 1px dashed var(--border); border-radius: 14px; padding: 2px 8px; cursor: pointer; }
-    .gif-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
-    .gif-thumb { width: 34px; height: 34px; object-fit: contain; background: var(--panel); border-radius: 6px; border: 1px solid var(--border); flex: 0 0 auto; }
-    .gif-label { flex: 1; word-break: break-all; }
-    .gif-del { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 6px; padding: 3px 10px; cursor: pointer; flex: 0 0 auto; }
-    .gif-del:hover { background: var(--danger); color: #11111b; }
-    .hint { color: var(--muted); font-size: 11px; }
-    #footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px 20px; border-top: 1px solid var(--border); background: var(--panel); position: sticky; bottom: 0; }
-    .btn-save { background: var(--accent-2); color: #11111b; padding: 8px 18px; }
-    .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 18px; }
-  </style>
+<meta charset="UTF-8" />
+<title>动画日程 · line puppy</title>
+<style>
+:root {
+  --bg: #181825;
+  --panel: #1e1e2e;
+  --card: #232336;
+  --card-2: #2a2a40;
+  --text: #e6e6f0;
+  --muted: #9a9ab0;
+  --accent: #89b4fa;
+  --accent-2: #a6e3a1;
+  --border: #363650;
+  --danger: #f38ba8;
+  --sys: #6c6c94;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+header {
+  padding: 18px 20px 14px;
+  background: linear-gradient(180deg, #232336, #1e1e2e);
+  border-bottom: 1px solid var(--border);
+}
+header h1 { margin: 0 0 4px; font-size: 17px; }
+header p { margin: 0; color: var(--muted); font-size: 12px; }
+main { padding: 16px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.card-title { margin: 0 0 2px; font-size: 14px; font-weight: 700; }
+.card-desc { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+button, select, input { font-family: inherit; font-size: 13px; }
+.btn-add, .btn-import, .btn-save, .btn-cancel {
+  border-radius: 8px; cursor: pointer; font-weight: 600; border: 1px solid transparent;
+}
+.btn-add { background: var(--accent); color: #11111b; padding: 7px 12px; }
+.btn-import { background: var(--card-2); color: var(--text); border-color: var(--border); padding: 7px 12px; }
+.btn-add:hover, .btn-import:hover { filter: brightness(1.08); }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ---- 24h timeline ---- */
+.tl-axis { position: relative; height: 16px; margin: 8px 0 2px; font-size: 10px; color: var(--muted); }
+.tl-tick { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.tl-track {
+  position: relative; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; margin-top: 2px; overflow: visible;
+}
+.tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); opacity: .55; }
+.tl-now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--danger); z-index: 7; box-shadow: 0 0 6px rgba(243,139,168,.7); }
+.tl-block {
+  position: absolute; height: 38px; display: flex; align-items: center; gap: 4px;
+  padding: 0 8px; border-radius: 8px; font-size: 11px; color: #11111b;
+  background: var(--accent); overflow: hidden; white-space: nowrap; cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35); z-index: 2; user-select: none;
+}
+.tl-block.tl-sys { background: var(--sys); color: #f2f2fa; }
+.tl-block.tl-timed { }
+.tl-block.tl-scheduled { padding: 0 6px; border-radius: 12px; height: 26px; }
+.tl-block.sel { outline: 2px solid var(--accent-2); outline-offset: 1px; z-index: 6; }
+.tl-block:active { cursor: grabbing; }
+.tl-dot { width: 7px; height: 7px; border-radius: 50%; background: #11111b; flex: 0 0 auto; }
+.tl-ico { flex: 0 0 auto; opacity: .85; }
+.tl-label { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.tl-time { flex: 0 0 auto; opacity: .85; font-variant-numeric: tabular-nums; margin-left: auto; }
+.tl-scheduled .tl-time { margin-left: 0; opacity: .75; }
+.tl-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.tl-handle.tl-l { left: 0; } .tl-handle.tl-r { right: 0; }
+.tl-handle:after { content: ""; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 1px; background: rgba(17,17,27,.45); }
+.tl-block:hover .tl-handle:after { background: rgba(17,17,27,.85); }
+
+/* ---- editor ---- */
+.tl-editor { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--card-2); }
+.ed-head { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; }
+.ed-head b { font-weight: 700; }
+.ed-close { margin-left: auto; background: transparent; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
+.ed-close:hover { color: var(--danger); }
+.ed-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ed-row label { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.ed-row select, .ed-row input[type="time"] {
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px;
+}
+.ed-del { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+.ed-del:hover { background: var(--danger); color: #11111b; }
+.effect-chip {
+  display: inline-flex; align-items: center; gap: 4px; background: var(--panel);
+  border: 1px solid var(--accent); color: var(--accent); border-radius: 14px;
+  padding: 2px 4px 2px 10px; font-size: 12px;
+}
+.chip-x { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+.chip-x:hover { color: var(--danger); }
+.effect-add { background: var(--panel); color: var(--text); border: 1px dashed var(--border); border-radius: 14px; padding: 4px 8px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 11px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 11px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* ---- my gifs ---- */
+.gif-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px dashed var(--border); }
+.gif-item:first-child { border-top: none; }
+.gif-thumb { width: 34px; height: 34px; object-fit: contain; background: var(--panel); border-radius: 6px; border: 1px solid var(--border); flex: 0 0 auto; }
+.gif-label { flex: 1; word-break: break-all; }
+.gif-del { background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 6px; padding: 3px 10px; cursor: pointer; flex: 0 0 auto; }
+.gif-del:hover { background: var(--danger); color: #11111b; }
+
+#footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 16px 20px; border-top: 1px solid var(--border); background: var(--panel); position: sticky; bottom: 0; }
+.btn-save { background: var(--accent-2); color: #11111b; padding: 8px 18px; }
+.btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 18px; }
+</style>
 </head>
 <body>
-  <header>
-    <h1>动画日程</h1>
-    <p>设置桌宠在每个时间段播放的动图。支持导入自己的 GIF 与一键套用模板。</p>
-  </header>
+<header>
+  <h1>动画日程</h1>
+  <p>一条 24 小时时间轴看清全天的动图安排：拖动色块改时间，拖两端改时长。</p>
+</header>
 
-  <main>
-    <!-- 预设模板 -->
-    <section class="card">
-      <h2 class="card-title">🧩 预设模板</h2>
-      <p class="card-desc">一键套用常见日程，会替换「时间线」里的自定义动画（系统内置不受影响）。</p>
-      <div id="template-list" class="template-grid"></div>
-    </section>
+<main>
+  <!-- 24h 时间轴 -->
+  <section class="card">
+    <h2 class="card-title">24 小时时间轴</h2>
+    <p class="card-desc">🟦 时段动画（一段时间内循环）　● 定时动画（到点触发一次）　🔒 系统内置（三餐 / 睡眠）</p>
+    <div class="tl-axis" id="tl-axis"></div>
+    <div class="tl-track" id="tl-track"></div>
+    <div class="row-actions">
+      <button class="btn-add" id="btn-add-scheduled">+ 定时动画</button>
+      <button class="btn-add" id="btn-add-timed">+ 时段动画</button>
+    </div>
+    <div class="tl-editor" id="tl-editor" hidden></div>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>自定义时段</span>
+      <span><i style="background:var(--accent);border-radius:50%"></i>自定义定时</span>
+      <span><i style="background:var(--sys)"></i>系统内置</span>
+      <span><i style="background:var(--danger)"></i>当前时间</span>
+    </div>
+  </section>
 
-    <!-- 时间线 -->
-    <section class="card">
-      <h2 class="card-title">⏱ 时间线</h2>
-      <p class="card-desc">自定义动画按顺序排列，可拖动 ⠿ 调整；🔒 为系统内置，不可删除、可停用。</p>
-      <div id="timeline-list"></div>
-      <div class="row-actions">
-        <button class="btn-add" id="btn-add-scheduled">+ 定时动画</button>
-        <button class="btn-add" id="btn-add-timed">+ 时段动画</button>
-      </div>
-    </section>
+  <!-- 我的 GIF -->
+  <section class="card">
+    <h2 class="card-title">🖼 我的 GIF</h2>
+    <p class="card-desc">导入自己的动图，然后在时间轴色块的效果里选用。</p>
+    <button class="btn-import" id="btn-import-gif">📁 导入 GIF</button>
+    <div id="custom-gifs-list"></div>
+  </section>
+</main>
 
-    <!-- 我的 GIF -->
-    <section class="card">
-      <h2 class="card-title">🖼 我的 GIF</h2>
-      <p class="card-desc">导入自己的动图，添加到时间线效果里。</p>
-      <button class="btn-import" id="btn-import-gif">📥 导入 GIF</button>
-      <div id="custom-gifs-list"></div>
-    </section>
+<div id="footer">
+  <button class="btn-cancel" id="btn-cancel">取消</button>
+  <button class="btn-save" id="btn-save">保存</button>
+</div>
 
-    <!-- 备份与恢复 -->
-    <section class="card">
-      <h2 class="card-title">💾 备份与恢复</h2>
-      <p class="card-desc">覆盖安装或换电脑时，先「导出配置」保存日程与 GIF，需要时再「导入配置」还原。</p>
-      <div class="row-actions">
-        <button class="btn-ghost" id="btn-export">导出配置</button>
-        <button class="btn-ghost" id="btn-import">导入配置</button>
-      </div>
-    </section>
-  </main>
+<script>
+const ALL_EFFECTS = [
+  { value: "love520", label: "520（我爱你）" },
+  { value: "love521", label: "521（我愿意）" },
+  { value: "heart", label: "爱心" },
+  { value: "jump", label: "弹跳" },
+  { value: "mealtime", label: "用餐" },
+  { value: "sleep", label: "入睡" },
+  { value: "sleep2", label: "熟睡" },
+  { value: "morningReading", label: "晨读" },
+  { value: "morningDrink", label: "晨饮" },
+  { value: "afterWork", label: "下班" },
+  { value: "send", label: "发送" },
+  { value: "good", label: "点赞" },
+  { value: "delete", label: "删除" },
+  { value: "undo", label: "撤销" },
+  { value: "special", label: "特殊" },
+  { value: "music", label: "音乐" },
+  { value: "scroll", label: "滚动" },
+  { value: "default", label: "默认（睡眠）" },
+];
 
-  <div id="footer">
-    <button class="btn-cancel" id="btn-cancel">取消</button>
-    <button class="btn-save" id="btn-save">保存</button>
-  </div>
+const ROW_H = 46;
+let scheduleData = { windows: [], system: [] };
+let customGifList = [];
+let selectedId = null;
+let drag = null;
 
-  <script>
-    const ALL_EFFECTS = [
-      { value: "love520", label: "520（我爱你）" },
-      { value: "love521", label: "521（我愿意）" },
-      { value: "heart", label: "爱心" },
-      { value: "jump", label: "弹跳" },
-      { value: "mealtime", label: "用餐" },
-      { value: "sleep", label: "入睡" },
-      { value: "sleep2", label: "熟睡" },
-      { value: "morningReading", label: "晨读" },
-      { value: "morningDrink", label: "晨饮" },
-      { value: "afterWork", label: "下班" },
-      { value: "send", label: "发送" },
-      { value: "good", label: "点赞" },
-      { value: "delete", label: "删除" },
-      { value: "undo", label: "撤销" },
-      { value: "special", label: "特殊" },
-      { value: "music", label: "音乐" },
-      { value: "scroll", label: "滚动" },
-      { value: "default", label: "默认（睡眠）" },
-    ];
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function labelFor(value) {
+  const builtin = ALL_EFFECTS.find(e => e.value === value);
+  if (builtin) return builtin.label;
+  const custom = customGifList.find(g => g.value === value);
+  if (custom) return custom.label;
+  return value;
+}
+const uid = () => "u" + Math.random().toString(36).slice(2, 9);
+function findEntry(id) {
+  return scheduleData.windows.find(e => e.id === id) || scheduleData.system.find(e => e.id === id);
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function timeToMin(s) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || ""));
+  if (!m) return 0;
+  return clamp(parseInt(m[1], 10) * 60 + parseInt(m[2], 10), 0, 1440);
+}
+function minToTime(m) {
+  m = clamp(Math.round(m), 0, 1440);
+  const h = Math.floor(m / 60), mm = m % 60;
+  return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
 
-    const TEMPLATES = [
-      {
-        id: "workday",
-        name: "工作日",
-        desc: "520·521 + 晨读 + 晨饮 + 下班；三餐/睡眠交给系统内置",
-        windows: [
-          { type: "scheduled", start: "05:20", effects: ["love520"] },
-          { type: "scheduled", start: "17:20", effects: ["love520"] },
-          { type: "scheduled", start: "05:21", effects: ["love521"] },
-          { type: "scheduled", start: "17:21", effects: ["love521"] },
-          { type: "timed", start: "10:30", end: "10:40", effects: ["morningReading"], interruptible: true },
-          { type: "timed", start: "10:40", end: "10:50", effects: ["morningDrink"], interruptible: true },
-          { type: "timed", start: "18:00", end: "19:00", effects: ["afterWork"], interruptible: true },
-        ],
-      },
-      {
-        id: "minimal",
-        name: "极简",
-        desc: "只留 520·521 定时；其余交给系统内置，最干净",
-        windows: [
-          { type: "scheduled", start: "05:20", effects: ["love520"] },
-          { type: "scheduled", start: "17:20", effects: ["love520"] },
-          { type: "scheduled", start: "05:21", effects: ["love521"] },
-          { type: "scheduled", start: "17:21", effects: ["love521"] },
-        ],
-      },
-      {
-        id: "freetime",
-        name: "自由",
-        desc: "520·521 + 下班；去掉晨读/晨饮，更轻松",
-        windows: [
-          { type: "scheduled", start: "05:20", effects: ["love520"] },
-          { type: "scheduled", start: "17:20", effects: ["love520"] },
-          { type: "scheduled", start: "05:21", effects: ["love521"] },
-          { type: "scheduled", start: "17:21", effects: ["love521"] },
-          { type: "timed", start: "18:00", end: "19:00", effects: ["afterWork"], interruptible: true },
-        ],
-      },
-    ];
+function buildBlocks() {
+  const items = [];
+  const all = [...scheduleData.windows.map(e => [e, false]), ...scheduleData.system.map(e => [e, true])];
+  for (const [e, isSys] of all) {
+    const s = timeToMin(e.start || "00:00");
+    const isTimed = e.type === "timed";
+    let en = isTimed ? timeToMin(e.end || "00:00") : s + 30;
+    if (en <= s) en = s + (isTimed ? 15 : 30);
+    en = Math.min(1440, en);
+    items.push({ entry: e, isSys, isTimed, startMin: s, endMin: en });
+  }
+  items.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const laneEnds = [];
+  for (const it of items) {
+    // reserve a bit of extra lane space for scheduled markers so their labels don't collide
+    const reserve = it.isTimed ? it.endMin : it.endMin + 15;
+    let lane = 0;
+    while (lane < laneEnds.length && laneEnds[lane] > it.startMin) lane++;
+    it.lane = lane;
+    laneEnds[lane] = reserve;
+  }
+  return items;
+}
 
-    let scheduleData = { windows: [], system: [] };
-    let customGifList = [];
+function renderAxis() {
+  const axis = document.getElementById("tl-axis");
+  let html = "";
+  for (let h = 0; h <= 24; h += 2) {
+    html += `<span class="tl-tick" style="left:${(h / 24 * 100).toFixed(4)}%">${h}:00</span>`;
+  }
+  axis.innerHTML = html;
+}
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function blockHtml(b) {
+  const e = b.entry;
+  const left = (b.startMin / 1440 * 100).toFixed(4);
+  const top = b.lane * ROW_H + 4;
+  const sel = e.id === selectedId ? " sel" : "";
+  const label = (e.effects || []).map(labelFor).join("、") || "（未设置动图）";
+  if (b.isTimed) {
+    const width = Math.max(1.6, (b.endMin - b.startMin) / 1440 * 100).toFixed(4);
+    const time = `${e.start}–${e.end}`;
+    return `<div class="tl-block tl-timed${b.isSys ? " tl-sys" : ""}${sel}" data-id="${e.id}" style="left:${left}%;width:${width}%;top:${top}px">
+      <span class="tl-ico">${b.isSys ? "🔒" : "▭"}</span><span class="tl-label">${escapeHtml(label)}</span><span class="tl-time">${escapeHtml(time)}</span>
+      <span class="tl-handle tl-l"></span><span class="tl-handle tl-r"></span>
+    </div>`;
+  }
+  return `<div class="tl-block tl-scheduled${b.isSys ? " tl-sys" : ""}${sel}" data-id="${e.id}" style="left:${left}%;top:${top}px">
+    <span class="tl-dot"></span><span class="tl-time">${escapeHtml(e.start)}</span><span class="tl-label">${escapeHtml(label)}</span>
+  </div>`;
+}
+
+function renderTimeline() {
+  const track = document.getElementById("tl-track");
+  const blocks = buildBlocks();
+  const lanes = blocks.length ? Math.max(...blocks.map(b => b.lane + 1)) : 1;
+  track.style.height = (lanes * ROW_H + 8) + "px";
+  let grid = "";
+  for (let h = 0; h <= 24; h += 2) grid += `<div class="tl-grid" style="left:${(h / 24 * 100).toFixed(4)}%"></div>`;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowLine = `<div class="tl-now" style="left:${(nowMin / 1440 * 100).toFixed(4)}%"></div>`;
+  track.innerHTML = grid + nowLine + blocks.map(blockHtml).join("");
+}
+
+function renderEditor() {
+  const ed = document.getElementById("tl-editor");
+  if (!selectedId) { ed.hidden = true; ed.innerHTML = ""; return; }
+  const e = findEntry(selectedId);
+  if (!e) { selectedId = null; ed.hidden = true; ed.innerHTML = ""; return; }
+  const isSys = scheduleData.system.includes(e);
+  const isTimed = e.type === "timed";
+  const chips = (e.effects || []).map(ev =>
+    `<span class="effect-chip" data-effect="${escapeHtml(ev)}">${escapeHtml(labelFor(ev))}<button class="chip-x" data-effect="${escapeHtml(ev)}" title="移除">×</button></span>`
+  ).join("") || '<span class="hint">（还没有动图，右侧添加）</span>';
+  const builtinOpts = ALL_EFFECTS.map(x => `<option value="${x.value}">${x.label}</option>`).join("");
+  const customOpts = customGifList.length
+    ? `<optgroup label="我的 GIF">${customGifList.map(g => `<option value="${g.value}">${escapeHtml(g.label)}</option>`).join("")}</optgroup>`
+    : "";
+  ed.hidden = false;
+  ed.innerHTML = `
+    <div class="ed-head"><b>编辑${isSys ? "（系统内置）" : ""}</b><button class="ed-close" title="收起">×</button></div>
+    <div class="ed-row">
+      ${isSys ? "" : `<label>类型 <select class="ed-type"><option value="scheduled" ${!isTimed ? "selected" : ""}>定时（时间点）</option><option value="timed" ${isTimed ? "selected" : ""}>时段（时间段）</option></select></label>`}
+      <label>开始 <input type="time" class="ed-start" value="${e.start || ""}"></label>
+      ${isTimed ? `<label>结束 <input type="time" class="ed-end" value="${e.end || ""}"></label>` : ""}
+      <label><input type="checkbox" class="ed-enabled" ${e.enabled !== false ? "checked" : ""}> 启用</label>
+    </div>
+    <div class="ed-row"><span class="hint">动图：</span>${chips}<select class="effect-add"><option value="">+ 添加动图</option><optgroup label="内置动画">${builtinOpts}</optgroup>${customOpts}</select></div>
+    <div class="ed-row">${isSys ? '<span class="hint">系统内置动画不能删除，可停用或调整时间。</span>' : '<button class="ed-del">删除该动画</button>'}</div>
+  `;
+}
+
+function selectEntry(id) {
+  selectedId = id;
+  renderTimeline();
+  renderEditor();
+}
+
+// ---- drag: move block / resize edges (timed) ----
+document.getElementById("tl-track").addEventListener("mousedown", (e) => {
+  const block = e.target.closest(".tl-block");
+  if (!block || e.button !== 0) return;
+  const id = block.dataset.id;
+  const entry = findEntry(id);
+  if (!entry) return;
+  const handle = e.target.classList.contains("tl-handle") ? (e.target.classList.contains("tl-l") ? "l" : "r") : null;
+  const isTimed = entry.type === "timed";
+  const startMin = timeToMin(entry.start || "00:00");
+  const endMin = isTimed ? timeToMin(entry.end || "00:00") : startMin + 30;
+  drag = { id, entry, isTimed, handle, startMin, endMin, x0: e.clientX, moved: false };
+  document.body.style.userSelect = "none";
+  e.preventDefault();
+});
+document.addEventListener("mousemove", (e) => {
+  if (!drag) return;
+  const trackW = document.getElementById("tl-track").clientWidth || 1;
+  const deltaMin = ((e.clientX - drag.x0) / trackW) * 1440;
+  if (Math.abs(e.clientX - drag.x0) > 3) drag.moved = true;
+  const SNAP = 5; // minutes
+  const snap = (m) => Math.round(m / SNAP) * SNAP;
+  if (drag.handle === "l" && drag.isTimed) {
+    let ns = clamp(drag.startMin + deltaMin, 0, drag.endMin - 5);
+    drag.entry.start = minToTime(snap(ns));
+    if (drag.entry.start >= drag.entry.end) drag.entry.start = minToTime(drag.endMin - 5);
+  } else if (drag.handle === "r" && drag.isTimed) {
+    let ne = clamp(drag.endMin + deltaMin, drag.startMin + 5, 1440);
+    drag.entry.end = minToTime(snap(ne));
+    if (drag.entry.end <= drag.entry.start) drag.entry.end = minToTime(drag.startMin + 5);
+  } else {
+    const dur = drag.endMin - drag.startMin;
+    let ns = clamp(drag.startMin + deltaMin, 0, 1440 - dur);
+    drag.entry.start = minToTime(snap(ns));
+    if (drag.isTimed) drag.entry.end = minToTime(timeToMin(drag.entry.start) + dur);
+  }
+  renderTimeline();
+});
+document.addEventListener("mouseup", () => {
+  if (!drag) return;
+  const id = drag.id;
+  drag = null;
+  document.body.style.userSelect = "";
+  renderTimeline();
+  selectEntry(id);
+});
+
+// ---- editor events ----
+document.getElementById("tl-editor").addEventListener("change", (e) => {
+  if (!selectedId) return;
+  const entry = findEntry(selectedId);
+  if (!entry) return;
+  const t = e.target;
+  if (t.classList.contains("ed-type")) {
+    entry.type = t.value;
+    if (entry.type === "timed") {
+      if (!entry.end) entry.end = entry.start || "12:00";
+      entry.interruptible = entry.interruptible ?? true;
+    } else {
+      delete entry.end;
+      entry.interruptible = false;
     }
-    function labelFor(value) {
-      const builtin = ALL_EFFECTS.find(e => e.value === value);
-      if (builtin) return builtin.label;
-      const custom = customGifList.find(g => g.value === value);
-      if (custom) return custom.label;
-      return value;
-    }
-    const uid = () => "u" + Math.random().toString(36).slice(2, 9);
-    function findEntry(id) {
-      return scheduleData.windows.find(e => e.id === id) || scheduleData.system.find(e => e.id === id);
-    }
+    renderEditor(); renderTimeline();
+  } else if (t.classList.contains("ed-start")) {
+    entry.start = t.value; renderTimeline();
+  } else if (t.classList.contains("ed-end")) {
+    entry.end = t.value; renderTimeline();
+  } else if (t.classList.contains("ed-enabled")) {
+    entry.enabled = t.checked;
+  } else if (t.classList.contains("effect-add")) {
+    const v = t.value;
+    if (v) { entry.effects = entry.effects || []; if (!entry.effects.includes(v)) entry.effects.push(v); }
+    t.value = "";
+    renderEditor(); renderTimeline();
+  }
+});
+document.getElementById("tl-editor").addEventListener("click", (e) => {
+  if (!selectedId) return;
+  const entry = findEntry(selectedId);
+  if (!entry) return;
+  if (e.target.classList.contains("chip-x")) {
+    const v = e.target.dataset.effect;
+    entry.effects = (entry.effects || []).filter(x => x !== v);
+    renderEditor(); renderTimeline();
+  } else if (e.target.classList.contains("ed-close")) {
+    selectedId = null; renderEditor(); renderTimeline();
+  } else if (e.target.classList.contains("ed-del")) {
+    const id = selectedId;
+    scheduleData.windows = scheduleData.windows.filter(en => en.id !== id);
+    selectedId = null; renderEditor(); renderTimeline();
+  }
+});
 
-    function renderEntry(entry, isSystem) {
-      const icon = isSystem ? "🔒" : (entry.type === "scheduled" ? "⏰" : "🕐");
-      const typeLabel = entry.type === "scheduled" ? "定时" : "时段";
-      const effectChips = (entry.effects || []).map(e =>
-        `<span class="effect-chip" data-effect="${e}">${escapeHtml(labelFor(e))}<button class="chip-x" data-effect="${e}" title="移除">×</button></span>`
-      ).join("");
-      const builtinOpts = ALL_EFFECTS.map(e => `<option value="${e.value}">${e.label}</option>`).join("");
-      const customOpts = customGifList.length
-        ? `<optgroup label="我的 GIF">${customGifList.map(g => `<option value="${g.value}">${escapeHtml(g.label)}</option>`).join("")}</optgroup>`
-        : "";
-      const isTimed = entry.type === "timed";
-      const toggleHtml = isSystem
-        ? `<label class="entry-int"><input type="checkbox" data-field="enabled" ${entry.enabled !== false ? "checked" : ""} />启用</label><span class="badge-system">系统</span>`
-        : (isTimed
-          ? `<label class="entry-int"><input type="checkbox" data-field="interruptible" ${entry.interruptible ? "checked" : ""} />可打断</label><button class="entry-del" title="删除该动画">删除</button>`
-          : `<button class="entry-del" title="删除该动画">删除</button>`);
-      return `
-      <div class="entry ${isSystem ? "entry-system" : ""}" data-id="${entry.id}" data-system="${isSystem}">
-        ${isSystem ? "" : '<div class="drag-handle" title="拖动排序">⠿</div>'}
-        <div class="entry-icon" title="${isSystem ? "系统内置" : typeLabel}">${icon}</div>
-        <div class="entry-head">
-          <select class="entry-type" ${isSystem ? "disabled" : ""}>
-            <option value="scheduled" ${entry.type === "scheduled" ? "selected" : ""}>定时</option>
-            <option value="timed" ${entry.type === "timed" ? "selected" : ""}>时段</option>
-          </select>
-          <input class="entry-start" data-field="start" value="${entry.start || ""}" placeholder="HH:MM" />
-          ${isTimed ? `<span class="entry-sep">至</span><input class="entry-end" data-field="end" value="${entry.end || ""}" placeholder="HH:MM" />` : ""}
-          ${toggleHtml}
-        </div>
-        <div class="entry-effects" data-id="${entry.id}">
-          ${effectChips}
-          <select class="effect-add" data-id="${entry.id}">
-            <option value="">+ 添加 GIF</option>
-            <optgroup label="内置动画">${builtinOpts}</optgroup>
-            ${customOpts}
-          </select>
-        </div>
-      </div>`;
-    }
+// ---- buttons ----
+document.getElementById("btn-add-scheduled").addEventListener("click", () => {
+  const id = uid();
+  scheduleData.windows.push({ id, type: "scheduled", start: "12:00", effects: [], interruptible: false, enabled: true });
+  selectEntry(id);
+});
+document.getElementById("btn-add-timed").addEventListener("click", () => {
+  const id = uid();
+  scheduleData.windows.push({ id, type: "timed", start: "12:00", end: "13:00", effects: [], interruptible: true, enabled: true });
+  selectEntry(id);
+});
+document.getElementById("btn-import-gif").addEventListener("click", async () => {
+  const res = await window.linePuppySettings.importGif();
+  if (res && res.ok && res.asset) {
+    if (!customGifList.find(g => g.value === res.asset.value)) customGifList.push(res.asset);
+    renderCustomGifs();
+    renderEditor();
+  }
+});
+document.getElementById("btn-cancel").addEventListener("click", () => window.close());
+document.getElementById("btn-save").addEventListener("click", async () => {
+  const res = await window.linePuppySettings.saveSchedule({
+    windows: scheduleData.windows.map(e => ({ ...e, effects: e.effects || [] })),
+    system: scheduleData.system.map(e => ({ ...e, effects: e.effects || [], enabled: e.enabled !== false })),
+  });
+  if (res && !res.ok) { alert("保存失败：" + (res.error || "未知错误")); return; }
+  window.close();
+});
 
-    function renderTimeline() {
-      const list = document.getElementById("timeline-list");
-      const windowsHtml = scheduleData.windows.map(e => renderEntry(e, false)).join("");
-      const systemHtml = scheduleData.system.map(e => renderEntry(e, true)).join("");
-      list.innerHTML = windowsHtml + systemHtml;
-    }
+// ---- my gifs ----
+function renderCustomGifs() {
+  const list = document.getElementById("custom-gifs-list");
+  if (!customGifList.length) {
+    list.innerHTML = '<div class="hint" style="padding-top:8px">暂无导入的 GIF。点击上方「📁 导入 GIF」添加你自己的动图。</div>';
+    return;
+  }
+  list.innerHTML = customGifList.map(g => `
+    <div class="gif-item" data-value="${escapeHtml(g.value)}">
+      <img class="gif-thumb" src="gif://${encodeURIComponent(g.file)}" alt="" onerror="this.style.display='none'" />
+      <span class="gif-label">${escapeHtml(g.label)}</span>
+      <button class="gif-del" data-value="${escapeHtml(g.value)}" title="删除该 GIF">删除</button>
+    </div>`).join("");
+}
+document.getElementById("custom-gifs-list").addEventListener("click", async (e) => {
+  const btn = e.target.closest(".gif-del");
+  if (!btn) return;
+  const value = btn.dataset.value;
+  const asset = customGifList.find(g => g.value === value);
+  const label = asset ? asset.label : value;
+  if (!confirm(`确定删除 GIF「${label}」吗？\n该文件将被永久删除，且所有引用它的动画时段也会一并移除。`)) return;
+  const res = await window.linePuppySettings.deleteGif(value);
+  if (res && res.ok) {
+    const strip = (entry) => { if (entry.effects) entry.effects = entry.effects.filter(x => x !== value); };
+    scheduleData.windows.forEach(strip);
+    scheduleData.system.forEach(strip);
+    customGifList = customGifList.filter(g => g.value !== value);
+    renderTimeline();
+    renderEditor();
+    renderCustomGifs();
+  } else {
+    alert("删除失败：" + (res && res.error ? res.error : "未知错误"));
+  }
+});
 
-    function renderTemplates() {
-      document.getElementById("template-list").innerHTML = TEMPLATES.map(t => `
-        <div class="template-card" data-template="${t.id}">
-          <div class="template-name">${escapeHtml(t.name)}</div>
-          <div class="template-desc">${escapeHtml(t.desc)}</div>
-        </div>`).join("");
-    }
-
-    function renderCustomGifs() {
-      const list = document.getElementById("custom-gifs-list");
-      if (!customGifList.length) {
-        list.innerHTML = '<div class="hint" style="padding-top:8px">暂无导入的 GIF。点击上方「📥 导入 GIF」添加你自己的动图。</div>';
-        return;
-      }
-      list.innerHTML = customGifList.map(g => `
-        <div class="gif-item" data-value="${escapeHtml(g.value)}">
-          <img class="gif-thumb" src="gif://${encodeURIComponent(g.file)}" alt="" onerror="this.style.display='none'" />
-          <span class="gif-label">${escapeHtml(g.label)}</span>
-          <button class="gif-del" data-value="${escapeHtml(g.value)}" title="删除该 GIF">删除</button>
-        </div>`).join("");
-    }
-
-    // ---- Event delegation ----
-    document.addEventListener("change", (e) => {
-      const t = e.target;
-      const entryEl = t.closest(".entry");
-      if (!entryEl) return;
-      const id = entryEl.dataset.id;
-      const entry = findEntry(id);
-      if (!entry) return;
-      if (t.classList.contains("entry-type")) {
-        entry.type = t.value;
-        if (entry.type === "timed") {
-          if (!entry.end) entry.end = entry.start || "12:00";
-          entry.interruptible = entry.interruptible ?? true;
-        } else {
-          delete entry.end;
-          entry.interruptible = false;
-        }
-        renderTimeline();
-      } else if (t.dataset.field === "start") {
-        entry.start = t.value;
-      } else if (t.dataset.field === "end") {
-        entry.end = t.value;
-      } else if (t.dataset.field === "interruptible") {
-        entry.interruptible = t.checked;
-      } else if (t.dataset.field === "enabled") {
-        entry.enabled = t.checked;
-      } else if (t.classList.contains("effect-add")) {
-        const val = t.value;
-        if (val && !entry.effects.includes(val)) entry.effects.push(val);
-        t.value = "";
-        renderTimeline();
-      }
-    });
-
-    // Delete an imported GIF from the library, and strip every reference to it.
-    document.getElementById("custom-gifs-list").addEventListener("click", async (e) => {
-      const btn = e.target.closest(".gif-del");
-      if (!btn) return;
-      const value = btn.dataset.value;
-      const asset = customGifList.find(g => g.value === value);
-      const label = asset ? asset.label : value;
-      if (!confirm(`确定删除 GIF「${label}」吗？\n该文件将被永久删除，且所有引用它的动画时段也会一并移除。`)) return;
-      const res = await window.linePuppySettings.deleteGif(value);
-      if (res && res.ok) {
-        const strip = (entry) => { if (entry.effects) entry.effects = entry.effects.filter(x => x !== value); };
-        scheduleData.windows.forEach(strip);
-        scheduleData.system.forEach(strip);
-        customGifList = customGifList.filter(g => g.value !== value);
-        renderTimeline();
-        renderCustomGifs();
-      } else {
-        alert("删除失败：" + (res && res.error ? res.error : "未知错误"));
-      }
-    });
-
-    document.addEventListener("click", (e) => {
-      if (e.target.classList.contains("chip-x")) {
-        const container = e.target.closest(".entry-effects");
-        const id = container.dataset.id;
-        const val = e.target.dataset.effect;
-        const entry = findEntry(id);
-        if (entry) entry.effects = entry.effects.filter(x => x !== val);
-        renderTimeline();
-      } else if (e.target.classList.contains("entry-del")) {
-        const id = e.target.closest(".entry").dataset.id;
-        const idx = scheduleData.windows.findIndex(en => en.id === id);
-        if (idx >= 0) scheduleData.windows.splice(idx, 1);
-        renderTimeline();
-      }
-    });
-
-    // Apply a template (replaces custom windows, keeps system entries).
-    document.getElementById("template-list").addEventListener("click", (e) => {
-      const card = e.target.closest(".template-card");
-      if (!card) return;
-      const tpl = TEMPLATES.find(t => t.id === card.dataset.template);
-      if (!tpl) return;
-      if (!confirm(`套用「${tpl.name}」模板会替换当前的自定义动画，确定吗？`)) return;
-      scheduleData.windows = tpl.windows.map(w => ({ ...w, id: uid(), effects: [...(w.effects || [])] }));
+// ---- init ----
+const normalize = (e) => {
+  if (!e.effects) e.effects = e.effect ? [e.effect] : [];
+  delete e.effect;
+  return e;
+};
+function reloadAll() {
+  return window.linePuppySettings.loadSchedule()
+    .then(data => {
+      scheduleData = {
+        windows: (data.windows || []).map(normalize),
+        system: (data.system || []).map(normalize),
+      };
+      return window.linePuppySettings.getCustomGifs();
+    })
+    .then(custom => {
+      customGifList = Array.isArray(custom) ? custom : [];
+      renderAxis();
       renderTimeline();
+      renderEditor();
+      renderCustomGifs();
     });
-
-    // ---- Drag reorder (custom entries only) ----
-    let draggedEntry = null;
-    let placeholder = null;
-    document.addEventListener("mousedown", (e) => {
-      const handle = e.target.closest(".drag-handle");
-      if (!handle) return;
-      const entryEl = handle.closest(".entry");
-      draggedEntry = { el: entryEl, id: entryEl.dataset.id };
-      placeholder = document.createElement("div");
-      placeholder.className = "entry placeholder";
-      placeholder.style.height = entryEl.offsetHeight + "px";
-      entryEl.parentNode.insertBefore(placeholder, entryEl.nextSibling);
-      entryEl.classList.add("dragging");
-    });
-    document.addEventListener("mousemove", (e) => {
-      if (!draggedEntry) return;
-      const elUnder = document.elementFromPoint(e.clientX, e.clientY);
-      const entryEl = elUnder && elUnder.closest('.entry:not(.entry-system):not(.placeholder)');
-      if (entryEl && entryEl !== draggedEntry.el) {
-        const rect = entryEl.getBoundingClientRect();
-        const before = (e.clientY - rect.top) / rect.height < 0.5;
-        entryEl.parentNode.insertBefore(placeholder, before ? entryEl : entryEl.nextSibling);
-      }
-    });
-    document.addEventListener("mouseup", () => {
-      if (!draggedEntry) return;
-      const entries = [...document.querySelectorAll('#timeline-list .entry:not(.entry-system)')];
-      const dropIdx = entries.indexOf(placeholder);
-      const orderedIds = entries
-        .filter(el => el !== draggedEntry.el && el !== placeholder)
-        .map(el => el.dataset.id);
-      orderedIds.splice(dropIdx < 0 ? orderedIds.length : dropIdx, 0, draggedEntry.id);
-      const byId = new Map(scheduleData.windows.map(e => [e.id, e]));
-      const reordered = orderedIds.map(id => byId.get(id)).filter(Boolean);
-      for (const e of scheduleData.windows) if (!orderedIds.includes(e.id)) reordered.push(e);
-      scheduleData.windows = reordered;
-      if (placeholder && placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
-      draggedEntry.el.classList.remove("dragging");
-      draggedEntry = null;
-      placeholder = null;
-      renderTimeline();
-    });
-
-    // ---- Buttons ----
-    document.getElementById("btn-add-scheduled").addEventListener("click", () => {
-      scheduleData.windows.push({ id: uid(), type: "scheduled", start: "12:00", effects: [], interruptible: false, enabled: true });
-      renderTimeline();
-    });
-    document.getElementById("btn-add-timed").addEventListener("click", () => {
-      scheduleData.windows.push({ id: uid(), type: "timed", start: "12:00", end: "13:00", effects: [], interruptible: true, enabled: true });
-      renderTimeline();
-    });
-    document.getElementById("btn-import-gif").addEventListener("click", async () => {
-      const res = await window.linePuppySettings.importGif();
-      if (res && res.ok && res.asset) {
-        if (!customGifList.find(g => g.value === res.asset.value)) customGifList.push(res.asset);
-        renderTimeline();
-        renderCustomGifs();
-      }
-    });
-    document.getElementById("btn-cancel").addEventListener("click", () => window.close());
-    document.getElementById("btn-save").addEventListener("click", async () => {
-      const res = await window.linePuppySettings.saveSchedule({
-        windows: scheduleData.windows.map(e => ({ ...e, effects: e.effects || [] })),
-        system: scheduleData.system.map(e => ({ ...e, effects: e.effects || [], enabled: e.enabled !== false })),
-      });
-      if (res && !res.ok) {
-        alert("保存失败：" + (res.error || "未知错误"));
-        return;
-      }
-      window.close();
-    });
-    document.getElementById("btn-export").addEventListener("click", async () => {
-      const res = await window.linePuppySettings.exportConfig();
-      if (res && res.ok) alert("配置已导出到：\n" + res.path);
-      else if (res && res.error) alert("导出失败：" + res.error);
-    });
-    document.getElementById("btn-import").addEventListener("click", async () => {
-      if (!confirm("导入配置会覆盖当前日程和 GIF，确定继续吗？\n建议先点「导出配置」备份。")) return;
-      const res = await window.linePuppySettings.importConfig();
-      if (res && res.ok) {
-        reloadAll();
-        alert("配置导入成功。");
-      } else if (res && res.error) alert("导入失败：" + res.error);
-    });
-
-    // ---- Init ----
-    const normalize = (e) => {
-      if (!e.effects) e.effects = e.effect ? [e.effect] : [];
-      delete e.effect;
-      return e;
-    };
-    function reloadAll() {
-      return window.linePuppySettings.loadSchedule()
-        .then(data => {
-          scheduleData = {
-            windows: (data.windows || []).map(normalize),
-            system: (data.system || []).map(normalize),
-          };
-          return window.linePuppySettings.getCustomGifs();
-        })
-        .then(custom => {
-          customGifList = Array.isArray(custom) ? custom : [];
-          renderTimeline();
-          renderCustomGifs();
-        });
-    }
-    renderTemplates();
-    reloadAll();
-  </script>
+}
+reloadAll();
+// keep the "now" marker fresh
+setInterval(() => { if (!drag) renderTimeline(); }, 60000);
+</script>
 </body>
 </html>
