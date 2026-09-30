@@ -87,7 +87,7 @@ button, select, input { font-family: inherit; font-size: 13px; }
   background: var(--panel); padding: 1px 6px; border-radius: 4px;
 }
 .vt-card {
-  position: absolute; height: 46px; padding: 0 12px;
+  position: absolute; height: 42px; padding: 0 12px;
   background: var(--card-2);
   border-left: 4px solid var(--accent);
   border-radius: 8px;
@@ -97,6 +97,7 @@ button, select, input { font-family: inherit; font-size: 13px; }
   z-index: 2; font-size: 12px;
   left: calc(80px + var(--lane) * (var(--col-w) + 6px));
   width: calc(var(--col-w) - 6px);
+  max-width: 360px;
   overflow: hidden;
 }
 .vt-card:hover { filter: brightness(1.08); }
@@ -323,16 +324,12 @@ function renderVertical() {
     const sel = e.id === selectedId ? " sel" : "";
     const isTimed = e.type === "timed";
     const timeText = isTimed ? `${e.start || ""}–${e.end || ""}` : (e.start || "");
-    const labelText = effs.map(labelFor).join("、");
-    const labelHtml = labelText
-      ? `<span class="vt-card-label" title="${escapeHtml(labelText)}">${escapeHtml(labelText)}</span>`
-      : `<span class="vt-card-label vt-card-empty">（未设置动图）</span>`;
+    const labelText = effs.map(labelFor).join("、") || "未设置动图";
     const typeName = isTimed ? "时段" : "定时";
     const sysBadge = it.isSys ? `<span class="vt-card-sys">系统</span>` : "";
     const borderColor = it.isSys ? darken(color) : color;
-    html += `<div class="vt-card${sel}" data-id="${e.id}" style="top:${it.top}px;--lane:${it.lane};border-left-color:${borderColor}">
+    html += `<div class="vt-card${sel}" data-id="${e.id}" title="${escapeHtml(labelText + "  " + timeText)}" style="top:${it.top}px;--lane:${it.lane};border-left-color:${borderColor}">
       <span class="vt-card-time">${escapeHtml(timeText)}</span>
-      ${labelHtml}
       <span class="vt-card-type">${typeName}</span>
       ${sysBadge}
     </div>`;
