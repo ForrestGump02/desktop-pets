@@ -204,8 +204,15 @@ function loadSchedule() {
     const savedSys = (saved.system || []).find(e => e.id === s.id);
     systemMap[s.id] = normalizeEffects({
       ...s,
-      enabled: savedSys ? savedSys.enabled !== false : true,
-      ...(savedSys && Array.isArray(savedSys.effects) ? { effects: savedSys.effects } : {}),
+      ...(savedSys
+        ? {
+            enabled: savedSys.enabled !== false,
+            ...(savedSys.start ? { start: savedSys.start } : {}),
+            ...(savedSys.end ? { end: savedSys.end } : {}),
+            ...(savedSys.type ? { type: savedSys.type } : {}),
+            ...(Array.isArray(savedSys.effects) ? { effects: savedSys.effects } : {}),
+          }
+        : { enabled: true }),
     });
   }
   const system = Object.values(systemMap);
