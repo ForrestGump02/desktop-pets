@@ -254,8 +254,8 @@ function createSettingsWindow() {
     return;
   }
   settingsWindow = new BrowserWindow({
-    width: 520,
-    height: 640,
+    width: 820,
+    height: 880,
     resizable: true,
     minimizable: true,
     maximizable: false,
